@@ -22,6 +22,8 @@ static qmsd_board_config_t g_board_config;
 SemaphoreHandle_t fileSystem_init;
 
 void qmsd_board_init_touch();
+static void touch_read(uint8_t* press, uint16_t* x, uint16_t* y);
+void qmsd_board_init_gui();
 
 void qmsd_board_init(qmsd_board_config_t* config) {
 
@@ -39,6 +41,9 @@ void qmsd_board_init(qmsd_board_config_t* config) {
     qmsd_board_init_screen();
     if (g_board_config.touch.en) {
         qmsd_board_init_touch();
+    }
+    if (g_board_config.gui.en) {
+        qmsd_board_init_gui();
     }
 
 }
@@ -105,6 +110,64 @@ void qmsd_board_init_touch() {
     touch_init(g_touch_driver, &touch_config);
 }
 
+void qmsd_board_init_gui() {
+    uint32_t buffer_size = QMSD_SCREEN_HIGHT * QMSD_SCREEN_WIDTH * 2;
+    uint8_t* buffers[QMSD_GUI_MAX_BUFFER_NUM] = {0};
+    if (g_board_config.gui.buffer_size != 0) {
+        buffer_size = g_board_config.gui.buffer_size;
+    }
+    uint8_t buffer_num = g_board_config.gui.flags.double_fb ? 2 : 1;
+    if (buffer_num == 1 && g_board_config.gui.refresh_task.en == 1) {
+        ESP_LOGW(TAG, "refresh only enable in double buffer");
+        g_board_config.gui.refresh_task.en = 0;
+    }
+
+    for (uint8_t i = 0; i < buffer_num; i++) {
+        if (g_board_config.gui.flags.fb_in_psram) {
+            buffers[i] = (uint8_t *)QMSD_MALLOC_PSRAM(buffer_size);
+        } else {
+            buffers[i] = (uint8_t *)QMSD_MALLOC(buffer_size);
+        }
+    }
+
+    qmsd_gui_config_t gui_config = {
+        .width = (g_board_config.board_dir & 0x01) ? QMSD_SCREEN_HIGHT : QMSD_SCREEN_WIDTH,
+        .hight = (g_board_config.board_dir & 0x01) ? QMSD_SCREEN_WIDTH : QMSD_SCREEN_HIGHT,
+        .buffer_nums = buffer_num,
+        .buffer_size = buffer_size,
+
+        // refresh task is for speeding up gui without dma flushing
+        .refresh_task = {
+            .en = g_board_config.gui.refresh_task.en,
+            .core = g_board_config.gui.refresh_task.core,
+            .priority = g_board_config.gui.refresh_task.priority,
+            .stack_size = g_board_config.gui.refresh_task.stack_size,
+        },
+
+        // gui update task
+        .update_task = {
+            .en = g_board_config.gui.update_task.en,
+            .core = g_board_config.gui.update_task.core,
+            .priority = g_board_config.gui.update_task.priority,
+            .stack_size = g_board_config.gui.update_task.stack_size,
+        },
+
+        .flags = {
+            .antialiasing = g_board_config.gui.flags.antialiasing,
+            .direct_mode = g_board_config.gui.flags.direct_mode,
+            .full_refresh = g_board_config.gui.flags.full_refresh,
+        },
+        
+        .draw_bitmap = g_board_config.gui.en ? screen_draw_bitmap : NULL,
+        .touch_read = g_board_config.touch.en ? touch_read : NULL,
+    };
+
+    for (uint8_t i = 0; i < QMSD_GUI_MAX_BUFFER_NUM; i++) {
+        gui_config.buffer[i] = buffers[i];
+    }
+    qmsd_gui_init(&gui_config);
+}
+
 scr_driver_t* qmsd_board_get_screen_driver() {
     return g_lcd_driver;
 }
@@ -143,4 +206,12 @@ void screen_draw_fill(uint16_t x, uint16_t y, uint16_t w, uint16_t h,uint16_t co
 
 inline void screen_draw_pixel(uint16_t x, uint16_t y,uint16_t color){
     g_lcd_driver->draw_pixel(x,y,color);
+}
+
+static void touch_read(uint8_t* press, uint16_t* x, uint16_t* y) {
+    touch_panel_points_t points;
+    touch_read_points(&points);
+    *press = points.event == TOUCH_EVT_PRESS;
+    *x = points.curx[0];
+    *y = points.cury[0];
 }
