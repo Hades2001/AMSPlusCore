@@ -182,6 +182,7 @@ void setup_scr_screen(lv_ui *ui)
     //Write style for screen_bar_hum, Part: LV_PART_MAIN, State: LV_STATE_DEFAULT.
     lv_obj_set_style_bg_opa(ui->screen_bar_hum, 251, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui->screen_bar_hum, lv_color_hex(0xffffff), LV_PART_MAIN|LV_STATE_DEFAULT);
+    
     lv_obj_set_style_bg_grad_dir(ui->screen_bar_hum, LV_GRAD_DIR_NONE, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_radius(ui->screen_bar_hum, 4, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_width(ui->screen_bar_hum, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
@@ -189,7 +190,8 @@ void setup_scr_screen(lv_ui *ui)
     //Write style for screen_bar_hum, Part: LV_PART_INDICATOR, State: LV_STATE_DEFAULT.
     lv_obj_set_style_bg_opa(ui->screen_bar_hum, 255, LV_PART_INDICATOR|LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui->screen_bar_hum, lv_color_hex(0x83DDFF), LV_PART_INDICATOR|LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_grad_dir(ui->screen_bar_hum, LV_GRAD_DIR_NONE, LV_PART_INDICATOR|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_color(ui->screen_bar_hum, lv_color_hex(0x003cff), LV_PART_INDICATOR|LV_STATE_DEFAULT);//lv_color_make(0x00, 0x3c, 0xff)
+    lv_obj_set_style_bg_grad_dir(ui->screen_bar_hum, LV_GRAD_DIR_HOR, LV_PART_INDICATOR|LV_STATE_DEFAULT);
     lv_obj_set_style_radius(ui->screen_bar_hum, 4, LV_PART_INDICATOR|LV_STATE_DEFAULT);
 
     //Write codes screen_lab_hum

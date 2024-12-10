@@ -1,7 +1,7 @@
 file(GLOB SOURCES *.c)
 
 idf_component_register(
-	SRCS ${SOURCES}
+	SRCS . aht10.c
 	INCLUDE_DIRS .
-	PRIV_REQUIRES "qmsd_board"
+	REQUIRES driver bus i2c_bus
 )

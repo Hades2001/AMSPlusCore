@@ -5,12 +5,9 @@
 #include "esp_log.h"
 #include "hal/spi_ll.h"
 #include "qmsd_lcd_wrapper.h"
-#include "led_strip.h"
-#include "aw9523.h"
 
 #include <sys/unistd.h>
 #include <sys/stat.h>
-#include "esp_vfs_fat.h"
 #include "i2c_device.h"
 
 #define TAG "QMSD_BOARD"
