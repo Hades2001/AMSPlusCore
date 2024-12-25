@@ -253,6 +253,12 @@ void init_ntag()
     rc522_start(scanner_2);
 }
 
+void anim_y_callback(void * obj, int32_t value) {
+    
+    lv_obj_set_y((lv_obj_t *)obj, value);  // 设置垂直位置
+    lv_obj_set_pos((lv_obj_t *)obj, 0, value);
+}
+
 void app_main(void) {
     gpio_install_isr_service(ESP_INTR_FLAG_SHARED);
     qmsd_board_config_t config = QMSD_BOARD_DEFAULT_CONFIG;
@@ -304,6 +310,15 @@ void app_main(void) {
     int cnt = 0;
 
     filament_msg_t filament_msg;
+
+    lv_anim_t anim;
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, ams_ui.screen_5_cont_1);
+    lv_anim_set_values(&anim, 0, -71);  // 从当前位置滚动到 x = 150
+    lv_anim_set_time(&anim, 200);                          // 动画持续时间 1000 ms
+    lv_anim_set_exec_cb(&anim, anim_y_callback);            // 水平方向动画
+    lv_anim_set_path_cb(&anim, lv_anim_path_ease_in_out);
+
     while(1){
         if(get_aht10_data(&temp,&hum) == 0 ){
             memset(tempstr,'\0',sizeof(tempstr));
@@ -324,8 +339,12 @@ void app_main(void) {
             lv_obj_set_tile(ams_ui.screen_5_tileview_1,pagelist[cnt],true);
             lv_obj_set_pos(ams_ui.screen_5_cont_1, 0, 0);
         }
+        else if((cnt <= 10 )&&(cnt >= 5)){
+            //lv_obj_set_pos(ams_ui.screen_5_cont_1, 0, -71);
+            lv_anim_set_values(&anim, (cnt%2!=1) ? -71 : 0, (cnt%2==1) ? -71 : 0);  // 从当前位置滚动到 x = 150
+            lv_anim_start(&anim);
+        }
         else {
-            lv_obj_set_pos(ams_ui.screen_5_cont_1, 0, -71);
             cnt = 0;
         }
         cnt ++;
