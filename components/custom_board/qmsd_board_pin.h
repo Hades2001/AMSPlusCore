@@ -16,3 +16,9 @@
 #define LCD_MISO_PIN        (-1)
 #define LCD_DC_PIN          (20)
 #define LCD_TE_PIN          (-1)
+
+#define RC522_SPI_MISO      (7)
+#define RC522_SPI_MOSI      (6)
+#define RC522_SPI_SCLK      (5)
+#define RC522_SPI_CS1       (16)
+#define RC522_SPI_CS2       (4)

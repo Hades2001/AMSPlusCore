@@ -17,40 +17,22 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
+#include "ams_mqtt.h"
+
 #define TAG "QMSD-MAIN"
 
 lv_ui ams_ui;
+extern QueueHandle_t xqueue_ams_msg; 
 
 void gui_user_init() {
-    //lv_obj_t* main_page = lv_obj_create(NULL);
-    //lv_obj_set_style_bg_color(main_page, lv_color_make(0xff, 0x00, 0x00), 0);
-    //lv_obj_t* label = lv_label_create(main_page);
-    //lv_label_set_text_static(label, "Hello Smartpanle");
-    //lv_obj_set_style_text_color(label, lv_color_white(), LV_PART_MAIN);
-    //lv_obj_center(label);
-    
-    setup_scr_screen(&ams_ui);
 
-    //lv_obj_t * img1 = lv_img_create(main_page);
-    //lv_img_set_src(img1, &WebUI2_map);
-    //lv_obj_align(img1, LV_ALIGN_CENTER, 0, 0);
-    //lv_obj_set_size(img1, 240, 135);
-    lv_label_set_text(ams_ui.screen_lab_filament_1, "PLA-Basic");
-    lv_label_set_text(ams_ui.screen_lab_filament_2, "PETG-CF");
-    lv_obj_set_style_bg_color(ams_ui.screen_box_filament_2, lv_color_hex(0xff0000), LV_PART_MAIN|LV_STATE_DEFAULT);
-
-    lv_scr_load(ams_ui.screen);
+    setup_ui(&ams_ui);
+    lv_scr_load(ams_ui.screen_5);
+    //lv_scr_load(ams_ui.screen);
 }
 
-#define RC522_SPI_BUS_GPIO_MISO (7)
-#define RC522_SPI_BUS_GPIO_MOSI (6)
-#define RC522_SPI_BUS_GPIO_SCLK (5)
-
-#define RC522_SPI_SCANNER_1_GPIO_SDA (16)
-#define RC522_SPI_SCANNER_2_GPIO_SDA (4)
-
-#define EXAMPLE_ESP_WIFI_SSID      "zxwifi2g4"
-#define EXAMPLE_ESP_WIFI_PASS      "12345678"
+#define EXAMPLE_ESP_WIFI_SSID      "LinkWIFI"
+#define EXAMPLE_ESP_WIFI_PASS      "stc89c52"
 #define EXAMPLE_ESP_MAXIMUM_RETRY  10
 
 #define WIFI_CONNECTED_BIT BIT0
@@ -167,12 +149,108 @@ void wifi_init_sta(void)
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
                  EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+        init_mqtt();
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
                  EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
     } else {
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }
+}
+
+#include "rc522.h"
+#include "driver/rc522_spi.h"
+#include "rc522_picc.h"
+#include "picc/rc522_ntag.h"
+
+
+static rc522_driver_handle_t driver_1;
+static rc522_driver_handle_t driver_2;
+
+// Scanners
+
+static rc522_handle_t scanner_1;
+static rc522_handle_t scanner_2;
+
+static rc522_spi_config_t scanner_1_config = {
+    .host_id = SPI3_HOST,
+    .bus_config = &(spi_bus_config_t){
+        .miso_io_num = RC522_SPI_MISO,
+        .mosi_io_num = RC522_SPI_MOSI,
+        .sclk_io_num = RC522_SPI_SCLK,
+    },
+    .dev_config = {
+        .spics_io_num = RC522_SPI_CS1,
+    },
+    .rst_io_num = -1, // soft-reset
+};
+
+// Second scanner does not need bus configuration,
+// since first scanner will initialize the bus.
+
+static rc522_spi_config_t scanner_2_config = {
+    .host_id = SPI3_HOST,
+    .dev_config = {
+        .spics_io_num = RC522_SPI_CS2,
+    },
+    .rst_io_num = -1, // soft-reset
+};
+
+uint8_t read_ntag_buff[32];
+
+static void on_picc_state_changed(void *arg, esp_event_base_t base, int32_t event_id, void *data)
+{
+    rc522_handle_t scanner = (rc522_handle_t)arg;
+    rc522_picc_state_changed_event_t *event = (rc522_picc_state_changed_event_t *)data;
+    rc522_picc_t *picc = event->picc;
+
+    uint8_t scanner_no = 1;
+
+    if (scanner == scanner_2) {
+        scanner_no = 2;
+    }
+
+    if (picc->state == RC522_PICC_STATE_ACTIVE) {
+        ESP_LOGI(TAG, "Card detected on the scanner #%d", scanner_no);
+        rc522_picc_print(picc);
+        rc522_ntag_readn(scanner,picc,16,read_ntag_buff,32);
+    }
+    else if (picc->state == RC522_PICC_STATE_IDLE && event->old_state >= RC522_PICC_STATE_ACTIVE) {
+        ESP_LOGI(TAG, "Card has been removed from the scanner #%d", scanner_no);
+    }
+}
+
+void init_ntag()
+{
+    rc522_spi_create(&scanner_1_config, &driver_1);
+    rc522_spi_create(&scanner_2_config, &driver_2);
+
+    rc522_driver_install(driver_1);
+    rc522_driver_install(driver_2);
+
+    // Create scanners
+
+    rc522_create(
+        &(rc522_config_t) {
+            .driver = driver_1,
+        },
+        &scanner_1);
+
+    rc522_create(
+        &(rc522_config_t) {
+            .driver = driver_2,
+        },
+        &scanner_2);
+
+    // Register events for each scanner
+
+    rc522_register_events(scanner_1, RC522_EVENT_PICC_STATE_CHANGED, on_picc_state_changed, scanner_1);
+    rc522_register_events(scanner_2, RC522_EVENT_PICC_STATE_CHANGED, on_picc_state_changed, scanner_2);
+
+    // Start scanners
+
+    rc522_start(scanner_1);
+    rc522_start(scanner_2);
 }
 
 void app_main(void) {
@@ -190,26 +268,67 @@ void app_main(void) {
       ESP_ERROR_CHECK(nvs_flash_erase());
       ret = nvs_flash_init();
     }
+    //ESP_ERROR_CHECK(nvs_flash_init());
+    ESP_ERROR_CHECK(esp_netif_init());
+    //ESP_ERROR_CHECK(esp_event_loop_create_default());
     //nvs_open();
-    wifi_init_sta();
+
+    //wifi_init_sta();
+
+    init_ntag();
 
     init_aht10(BOARD_I2C_SCL_PIN,BOARD_I2C_SDA_PIN);
     float temp,hum;
     char tempstr[10];
+
+    lv_obj_t *filament_boxlist[4] = {
+        ams_ui.screen_31_box_filament_1,
+        ams_ui.screen_31_box_filament_2,
+        ams_ui.screen_31_box_filament_3,
+        ams_ui.screen_31_box_filament_4,
+    };
+    lv_obj_t *filament_textlist[4] = {
+        ams_ui.screen_31_lab_filament_1,
+        ams_ui.screen_31_lab_filament_2,
+        ams_ui.screen_31_lab_filament_3,
+        ams_ui.screen_31_lab_filament_4,
+    };
+
+    lv_obj_t *pagelist[5] = {
+        ams_ui.screen_00,
+        ams_ui.screen_01,
+        ams_ui.screen_11,
+        ams_ui.screen_21,
+        ams_ui.screen_31,
+    };
+    int cnt = 0;
+
+    filament_msg_t filament_msg;
     while(1){
         if(get_aht10_data(&temp,&hum) == 0 ){
             memset(tempstr,'\0',sizeof(tempstr));
             sprintf(tempstr,"%.1f°C",temp);
-            lv_label_set_text(ams_ui.screen_lab_temp,tempstr);
+            lv_label_set_text(ams_ui.screen_31_lab_temp,tempstr);
         
             memset(tempstr,'\0',sizeof(tempstr));
             sprintf(tempstr,"%d%%",((uint16_t)(hum*100))%100);
-            lv_label_set_text(ams_ui.screen_lab_hum, tempstr);
-
-            lv_bar_set_value(ams_ui.screen_bar_hum, ((uint16_t)(hum*100))%100, LV_ANIM_OFF);
-
-            ESP_LOGI(TAG,"T:%.2f,H:%.2f",temp,hum);
+            lv_label_set_text(ams_ui.screen_31_lab_hum, tempstr);
+            lv_bar_set_value(ams_ui.screen_31_bar_hum, ((uint16_t)(hum*100))%100, LV_ANIM_OFF);
         }
-        vTaskDelay(100);
+        //if(xQueueReceive( xqueue_ams_msg,&filament_msg,portMAX_DELAY) == pdTRUE){
+        //    filament_msg.amd_id = (filament_msg.amd_id > 3 ) ? 3 : filament_msg.amd_id;
+        //    lv_label_set_text(filament_textlist[filament_msg.amd_id], filament_msg.filament_type);
+        //    lv_obj_set_style_bg_color(filament_boxlist[filament_msg.amd_id], lv_color_hex(filament_msg.color>>8), LV_PART_MAIN|LV_STATE_DEFAULT);
+        //}
+        if(cnt < 5 ){
+            lv_obj_set_tile(ams_ui.screen_5_tileview_1,pagelist[cnt],true);
+            lv_obj_set_pos(ams_ui.screen_5_cont_1, 0, 0);
+        }
+        else {
+            lv_obj_set_pos(ams_ui.screen_5_cont_1, 0, -71);
+            cnt = 0;
+        }
+        cnt ++;
+        vTaskDelay(1000);
     }
 }

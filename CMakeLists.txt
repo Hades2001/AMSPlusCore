@@ -13,3 +13,6 @@ endif()
 include($ENV{QMSD_8MS_PATH}/component.cmake)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(get-start)
+
+
+target_add_binary_data(get-start.elf "main/ca_certificate.pem" TEXT)
