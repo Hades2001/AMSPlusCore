@@ -79,16 +79,16 @@ void setup_scr_screen_5(lv_ui *ui){
 	//add new tile screen_5_tileview_1_tile_30
 	ui->screen_5_tileview_1_tile_30 = lv_tileview_add_tile(ui->screen_5_tileview_1, 3, 0, LV_DIR_RIGHT);
 #else
-	//add new tile screen_5_tileview_1_tile_00
-	ui->screen_01 = lv_tileview_add_tile(ui->screen_5_tileview_1, 0 , 1, LV_DIR_RIGHT | LV_DIR_TOP);
-	//add new tile screen_5_tileview_1_tile_01
-	ui->screen_00 = lv_tileview_add_tile(ui->screen_5_tileview_1, 0 , 0, LV_DIR_BOTTOM);
-	//add new tile screen_5_tileview_1_tile_10
-	ui->screen_11 = lv_tileview_add_tile(ui->screen_5_tileview_1, 1 , 1, LV_DIR_LEFT | LV_DIR_RIGHT);
-	//add new tile screen_5_tileview_1_tile_20
-	ui->screen_21 = lv_tileview_add_tile(ui->screen_5_tileview_1, 2 , 1, LV_DIR_LEFT | LV_DIR_RIGHT);
-	//add new tile screen_5_tileview_1_tile_30
-	ui->screen_31 = lv_tileview_add_tile(ui->screen_5_tileview_1, 3 , 1, LV_DIR_LEFT);
+
+	ui->screen_11 = lv_tileview_add_tile(ui->screen_5_tileview_1, 0 , 0, LV_DIR_ALL);
+
+	ui->screen_21 = lv_tileview_add_tile(ui->screen_5_tileview_1, 1 , 0, LV_DIR_ALL);
+
+	ui->screen_01 = lv_tileview_add_tile(ui->screen_5_tileview_1, 1 , 2, LV_DIR_ALL);
+
+	ui->screen_00 = lv_tileview_add_tile(ui->screen_5_tileview_1, 1 , 1, LV_DIR_ALL);
+	
+	ui->screen_31 = lv_tileview_add_tile(ui->screen_5_tileview_1, 2 , 0, LV_DIR_ALL);
 	
 #endif
 }

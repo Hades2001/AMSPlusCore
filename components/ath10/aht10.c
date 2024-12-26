@@ -39,7 +39,7 @@ esp_err_t init_aht10(uint8_t scl,uint8_t sda)
     xAHT10Semaphore1 = xSemaphoreCreateBinary();
     xSemaphoreGive(xAHT10Semaphore1);
     
-    xTaskCreatePinnedToCore(ath10_read_task, "ath10_read_task", 2 * 1024, NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(ath10_read_task, "ath10_read_task", 4 * 1024, NULL, 5, NULL, 1);
     return ESP_OK;
 }
 
@@ -90,6 +90,6 @@ void ath10_read_task(void *arg) {
         }
         //ESP_LOGI(TAG,"T:%.2f,H:%.2f",aht_data.temp,aht_data.hum);
         aht10_start_measure();
-        vTaskDelay(100);
+        vTaskDelay(500);
     }
 }

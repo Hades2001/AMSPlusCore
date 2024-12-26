@@ -23,6 +23,5 @@ idf_component_register(
     SRCS "gui/setup_scr_screen_31.c"
     SRCS "gui/setup_scr_screen_5.c"
 
-    SRCS "ams_mqtt.c"
     SRCS "main.c"
 )

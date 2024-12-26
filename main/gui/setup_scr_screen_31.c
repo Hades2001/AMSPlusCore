@@ -10,6 +10,11 @@
 #include "events_init.h"
 
 
+void anim_y_callback(void * obj, int32_t value) {
+    
+    lv_obj_set_y((lv_obj_t *)obj, value);  // 设置垂直位置
+    lv_obj_set_pos((lv_obj_t *)obj, 0, value);
+}
 
 void setup_scr_screen_31(lv_ui *ui){
 #if CRE_TILE
@@ -505,7 +510,7 @@ void setup_scr_screen_31(lv_ui *ui){
 	//Write codes screen_31_lab_temp
 	ui->screen_31_lab_temp = lv_label_create(ui->screen_5_cont_1);
 	lv_obj_set_pos(ui->screen_31_lab_temp, 164, 140);
-	lv_obj_set_size(ui->screen_31_lab_temp, 70, 35);
+	lv_obj_set_size(ui->screen_31_lab_temp, 100, 35);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_temp, LV_SCROLLBAR_MODE_OFF);
 	lv_label_set_text(ui->screen_31_lab_temp, "25°C");
 	lv_label_set_long_mode(ui->screen_31_lab_temp, LV_LABEL_LONG_WRAP);
@@ -558,12 +563,20 @@ void setup_scr_screen_31(lv_ui *ui){
 	else
 		lv_style_init(&style_screen_31_bar_hum_main_indicator_default);
 	lv_style_set_radius(&style_screen_31_bar_hum_main_indicator_default, 5);
-	lv_style_set_bg_color(&style_screen_31_bar_hum_main_indicator_default, lv_color_make(0x83, 0xDD, 0xFF));
-	lv_style_set_bg_grad_color(&style_screen_31_bar_hum_main_indicator_default, lv_color_make(0x21, 0x95, 0xf6));
+	lv_style_set_bg_color(&style_screen_31_bar_hum_main_indicator_default, lv_color_make(0x00, 0x61, 0xF3));
+	lv_style_set_bg_grad_color(&style_screen_31_bar_hum_main_indicator_default, lv_color_make(0x83, 0xDD, 0xFF));
 	lv_style_set_bg_grad_dir(&style_screen_31_bar_hum_main_indicator_default, LV_GRAD_DIR_NONE);
 	lv_style_set_bg_opa(&style_screen_31_bar_hum_main_indicator_default, 255);
 	lv_obj_add_style(ui->screen_31_bar_hum, &style_screen_31_bar_hum_main_indicator_default, LV_PART_INDICATOR|LV_STATE_DEFAULT);
 	lv_obj_set_style_anim_time(ui->screen_31_bar_hum, 1000, 0);
 	lv_bar_set_mode(ui->screen_31_bar_hum, LV_BAR_MODE_NORMAL);
 	lv_bar_set_value(ui->screen_31_bar_hum, 50, LV_ANIM_OFF);
+// 0061F3
+	lv_bar_set_range(ui->screen_31_bar_hum, -20, 80);
+
+    lv_anim_init(&ui->screen_31_anim);
+    lv_anim_set_var(&ui->screen_31_anim, ui->screen_5_cont_1);
+    lv_anim_set_time(&ui->screen_31_anim, 200);          
+    lv_anim_set_exec_cb(&ui->screen_31_anim, anim_y_callback); 
+    lv_anim_set_path_cb(&ui->screen_31_anim, lv_anim_path_ease_in_out);
 }

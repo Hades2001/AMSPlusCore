@@ -30,8 +30,8 @@ void setup_scr_screen_11(lv_ui *ui){
 
 	//Write codes screen_11_label_1
 	ui->screen_11_label_1 = lv_label_create(ui->screen_11);
-	lv_obj_set_pos(ui->screen_11_label_1, 73, 48);
-	lv_obj_set_size(ui->screen_11_label_1, 100, 30);
+	lv_obj_set_pos(ui->screen_11_label_1, 50, 44);
+	lv_obj_set_size(ui->screen_11_label_1, 140, 40);
 	lv_obj_set_scrollbar_mode(ui->screen_11_label_1, LV_SCROLLBAR_MODE_OFF);
 	lv_label_set_text(ui->screen_11_label_1, "AMS+");
 	lv_label_set_long_mode(ui->screen_11_label_1, LV_LABEL_LONG_WRAP);
@@ -48,7 +48,8 @@ void setup_scr_screen_11(lv_ui *ui){
 	lv_style_set_bg_grad_dir(&style_screen_11_label_1_main_main_default, LV_GRAD_DIR_NONE);
 	lv_style_set_bg_opa(&style_screen_11_label_1_main_main_default, 0);
 	lv_style_set_text_color(&style_screen_11_label_1_main_main_default, lv_color_make(0xff, 0xff, 0xff));
-	lv_style_set_text_font(&style_screen_11_label_1_main_main_default, &lv_font_Teko_Regular_17);
+	// lv_style_set_text_font(&style_screen_11_label_1_main_main_default, &lv_font_Teko_Regular_17);
+	lv_style_set_text_font(&style_screen_11_label_1_main_main_default, &lv_customer_font_Teko_Regular_35);
 	lv_style_set_text_letter_space(&style_screen_11_label_1_main_main_default, 0);
 	lv_style_set_text_line_space(&style_screen_11_label_1_main_main_default, 0);
 	lv_style_set_text_align(&style_screen_11_label_1_main_main_default, LV_TEXT_ALIGN_CENTER);

@@ -22,6 +22,12 @@ static const char *TAG = "AMS_MQTTS";
 extern const uint8_t mqtt_eclipseprojects_io_pem_start[]   asm("_binary_ca_certificate_pem_start");
 extern const uint8_t mqtt_eclipseprojects_io_pem_end[]   asm("_binary_ca_certificate_pem_end");
 
+//char *report_topic = "device/01P09C491600517/report";
+//char *request_topic = "device/01P09C491600517/request";
+
+char report_topic[64] = {0};
+char request_topic[64] = {0};
+
 static char *payload = "{\"pushing\": {\"sequence_id\": \"0\",\"command\": \"pushall\",\"version\": 1,\"push_target\": 1}}";
 QueueHandle_t xqueue_ams_msg;
 
@@ -201,36 +207,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     }
 }
 
-static void mqtt_app_start(void)
-{
-    ESP_LOGI(TAG,"certificate \n%s",(const char *)mqtt_eclipseprojects_io_pem_start);
-    const esp_mqtt_client_config_t mqtt_cfg = {
-        .broker = {
-            //.address.uri = "mqtts://10.0.0.76:8883",
-            .address.hostname = "10.0.0.76",
-            .address.port = 8883,
-            .verification.skip_cert_common_name_check = true,
-            .address.transport = MQTT_TRANSPORT_OVER_SSL,
-            .verification.certificate = (const char *)mqtt_eclipseprojects_io_pem_start
-        },
-        .credentials = {
-            .username = "bblp",
-            .client_id = "OpenSpool_Client",
-            .authentication.password = "36711980"
-        },
-        .buffer = {
-            .size = 6 * 1024,
-        }
-    };
+char device_ip[32];
+char device_password[32];
 
-    ESP_LOGI(TAG, "[APP] Free memory: %" PRIu32 " bytes", esp_get_free_heap_size());
-    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-    /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
-    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-    esp_mqtt_client_start(client);
-}
-
-void init_mqtt(void)
+void init_mqtt(char* printer_ip,char* printer_password,char* printer_device_id)
 {
     ESP_LOGI(TAG, "[APP] Startup..");
     ESP_LOGI(TAG, "[APP] Free memory: %" PRIu32 " bytes", esp_get_free_heap_size());
@@ -244,6 +224,36 @@ void init_mqtt(void)
     esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
     esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
 
+    strlcpy(device_ip,printer_ip,sizeof(device_ip));
+    strlcpy(device_password,printer_password,sizeof(device_password));
+
     xqueue_ams_msg = xQueueCreate(16,sizeof(filament_msg_t));
-    mqtt_app_start();
+    ESP_LOGI(TAG,"certificate \n%s",(const char *)mqtt_eclipseprojects_io_pem_start);
+    const esp_mqtt_client_config_t mqtt_cfg = {
+        .broker = {
+            //.address.uri = "mqtts://10.0.0.76:8883",
+            .address.hostname = device_ip,
+            .address.port = 8883,
+            .verification.skip_cert_common_name_check = true,
+            .address.transport = MQTT_TRANSPORT_OVER_SSL,
+            .verification.certificate = (const char *)mqtt_eclipseprojects_io_pem_start
+        },
+        .credentials = {
+            .username = "bblp",
+            .client_id = "OpenSpool_Client",
+            .authentication.password = device_password
+        },
+        .buffer = {
+            .size = 5 * 1024,
+        }
+    };
+
+    sprintf(report_topic,"device/%s/report",printer_device_id);
+    sprintf(request_topic,"device/%s/request",printer_device_id);
+
+    ESP_LOGI(TAG, "[APP] Free memory: %" PRIu32 " bytes", esp_get_free_heap_size());
+    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+    /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
+    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+    esp_mqtt_client_start(client);
 }

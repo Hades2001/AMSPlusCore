@@ -109,7 +109,7 @@ void setup_scr_screen_21(lv_ui *ui){
 		lv_style_reset(&style_screen_21_spinner_1_main_indicator_default);
 	else
 		lv_style_init(&style_screen_21_spinner_1_main_indicator_default);
-	lv_style_set_arc_color(&style_screen_21_spinner_1_main_indicator_default, lv_color_make(0x7F, 0xB4, 0xF9));
+	lv_style_set_arc_color(&style_screen_21_spinner_1_main_indicator_default, lv_color_make(0x4d, 0x97, 0xF6));
 	lv_style_set_arc_width(&style_screen_21_spinner_1_main_indicator_default, 10);
 	lv_style_set_opa(&style_screen_21_spinner_1_main_indicator_default, 255);
 	lv_obj_add_style(ui->screen_21_spinner_1, &style_screen_21_spinner_1_main_indicator_default, LV_PART_INDICATOR|LV_STATE_DEFAULT);

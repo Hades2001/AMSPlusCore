@@ -5,7 +5,7 @@
 #include "esp_log.h"
 #include "hal/spi_ll.h"
 #include "qmsd_lcd_wrapper.h"
-
+#include "nvs_flash.h"
 #include <sys/unistd.h>
 #include <sys/stat.h>
 #include "i2c_device.h"
@@ -21,6 +21,7 @@ SemaphoreHandle_t fileSystem_init;
 void qmsd_board_init_touch();
 static void touch_read(uint8_t* press, uint16_t* x, uint16_t* y);
 void qmsd_board_init_gui();
+static void init_rc522();
 
 void qmsd_board_init(qmsd_board_config_t* config) {
 
@@ -42,6 +43,15 @@ void qmsd_board_init(qmsd_board_config_t* config) {
     if (g_board_config.gui.en) {
         qmsd_board_init_gui();
     }
+
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(esp_netif_init());
+
+    init_rc522();
 
 }
 
@@ -211,4 +221,58 @@ static void touch_read(uint8_t* press, uint16_t* x, uint16_t* y) {
     *press = points.event == TOUCH_EVT_PRESS;
     *x = points.curx[0];
     *y = points.cury[0];
+}
+
+static rc522_driver_handle_t driver_1;
+static rc522_driver_handle_t driver_2;
+
+rc522_handle_t scanner_1;
+rc522_handle_t scanner_2;
+
+static rc522_spi_config_t scanner_1_config = {
+    .host_id = SPI3_HOST,
+    .bus_config = &(spi_bus_config_t){
+        .miso_io_num = RC522_SPI_MISO,
+        .mosi_io_num = RC522_SPI_MOSI,
+        .sclk_io_num = RC522_SPI_SCLK,
+    },
+    .dev_config = {
+        .spics_io_num = RC522_SPI_CS1,
+    },
+    .rst_io_num = -1, // soft-reset
+};
+
+// Second scanner does not need bus configuration,
+// since first scanner will initialize the bus.
+
+static rc522_spi_config_t scanner_2_config = {
+    .host_id = SPI3_HOST,
+    .dev_config = {
+        .spics_io_num = RC522_SPI_CS2,
+    },
+    .rst_io_num = -1, // soft-reset
+};
+
+
+static void init_rc522(void){
+
+    rc522_spi_create(&scanner_1_config, &driver_1);
+    rc522_spi_create(&scanner_2_config, &driver_2);
+
+    rc522_driver_install(driver_1);
+    rc522_driver_install(driver_2);
+
+    // Create scanners
+
+    rc522_create(
+        &(rc522_config_t) {
+            .driver = driver_1,
+        },
+        &scanner_1);
+
+    rc522_create(
+        &(rc522_config_t) {
+            .driver = driver_2,
+        },
+        &scanner_2);
 }

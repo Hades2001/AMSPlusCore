@@ -95,9 +95,8 @@ void qrcode_create(lv_ui* ui)
 	lv_color_t bg_color = lv_color_hex(0xffffff);
 	lv_color_t fg_color = lv_color_hex(0x000000);
 
-	ui->qr_code = lv_qrcode_create(ui->screen_01, 76, fg_color, bg_color);
-	lv_obj_set_pos(ui->qr_code, 82, 18);
-	lv_obj_set_size(ui->qr_code, 76, 76);
+    ui->qr_code = lv_qrcode_create(ui->screen_01, 68, fg_color, bg_color);
+	lv_obj_set_pos(ui->qr_code, 81, 17);
 	
 	/*Set data*/
 	const char * data = SERVER_URL;
