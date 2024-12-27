@@ -165,7 +165,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-        msg_id = esp_mqtt_client_subscribe(client, "device/01P09C491600517/report", 1);
+        msg_id = esp_mqtt_client_subscribe(client, report_topic, 1);
         ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_DISCONNECTED:
@@ -173,7 +173,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         break;
     case MQTT_EVENT_SUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-        msg_id = esp_mqtt_client_publish(client, "device/01P09C491600517/request", payload, 0, 0, 0);
+        msg_id = esp_mqtt_client_publish(client, request_topic, payload, 0, 0, 0);
         ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_UNSUBSCRIBED:
@@ -248,8 +248,35 @@ void init_mqtt(char* printer_ip,char* printer_password,char* printer_device_id)
         }
     };
 
+    /*
+    xqueue_ams_msg = xQueueCreate(16,sizeof(filament_msg_t));
+    ESP_LOGI(TAG,"certificate \n%s",(const char *)mqtt_eclipseprojects_io_pem_start);
+    const esp_mqtt_client_config_t mqtt_cfg = {
+        .broker = {
+            //.address.uri = "mqtts://10.0.0.76:8883",
+            .address.hostname = "192.168.31.234",
+            .address.port = 8883,
+            .verification.skip_cert_common_name_check = true,
+            .address.transport = MQTT_TRANSPORT_OVER_SSL,
+            .verification.certificate = (const char *)mqtt_eclipseprojects_io_pem_start
+        },
+        .credentials = {
+            .username = "bblp",
+            .client_id = "OpenSpool_Client",
+            .authentication.password = "12345678"
+        },
+        .buffer = {
+            .size = 5 * 1024,
+        }
+    };
+    */
+
+
     sprintf(report_topic,"device/%s/report",printer_device_id);
     sprintf(request_topic,"device/%s/request",printer_device_id);
+
+    ESP_LOGI(TAG,"TOPIC:%s",report_topic);
+    ESP_LOGI(TAG,"TOPIC:%s",request_topic);
 
     ESP_LOGI(TAG, "[APP] Free memory: %" PRIu32 " bytes", esp_get_free_heap_size());
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);

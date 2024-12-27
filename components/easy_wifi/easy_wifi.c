@@ -439,6 +439,29 @@ static esp_err_t root_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+void url_decode(const char *src, char *dst, size_t dst_size)
+{
+    size_t i = 0, j = 0;
+    while (src[i] && j < (dst_size - 1)) {
+        if (src[i] == '%' &&
+            isxdigit((int)src[i+1]) &&
+            isxdigit((int)src[i+2])) 
+        {
+            // 解析 %xx
+            char hex[3] = { src[i+1], src[i+2], '\0' };
+            dst[j++] = (char) strtol(hex, NULL, 16);
+            i += 3;
+        } else if (src[i] == '+') {
+            // application/x-www-form-urlencoded 中 + 表示空格
+            dst[j++] = ' ';
+            i++;
+        } else {
+            // 普通字符
+            dst[j++] = src[i++];
+        }
+    }
+    dst[j] = '\0';
+}
 /**
  * @brief 处理 “/config” 的 POST 请求，接收表单数据并保存
  */
@@ -446,6 +469,7 @@ static esp_err_t config_post_handler(httpd_req_t *req)
 {
     // 一般需要比之前稍大一些的缓冲区
     char buf[256] = {0};
+    char s_buf[256] = {0};
     int total_len = req->content_len;
     int received = 0, cur_len = 0;
 
@@ -457,14 +481,15 @@ static esp_err_t config_post_handler(httpd_req_t *req)
 
     // 循环读取 POST 数据
     while (cur_len < total_len) {
-        received = httpd_req_recv(req, buf + cur_len, total_len - cur_len);
+        received = httpd_req_recv(req, s_buf + cur_len, total_len - cur_len);
         if (received <= 0) {
             httpd_resp_send_500(req);
             return ESP_FAIL;
         }
         cur_len += received;
     }
-    buf[cur_len] = '\0'; // 结尾加上字符串终止符
+    s_buf[cur_len] = '\0'; // 结尾加上字符串终止符
+    url_decode(s_buf,buf,sizeof(buf));
 
     ESP_LOGI("WEB_SERVER", "Received config: %s", buf);
 

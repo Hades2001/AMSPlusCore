@@ -194,7 +194,11 @@ void gui_user_init() {
 void app_main(void) {
     gpio_install_isr_service(ESP_INTR_FLAG_SHARED);
     qmsd_board_config_t config = QMSD_BOARD_DEFAULT_CONFIG;
+    config.gui.buffer_size = 240 * 135 * 2;
     config.gui.en = true;
+    config.gui.flags.double_fb = 0;
+    config.gui.flags.fb_in_psram = 0;
+    config.gui.refresh_task.en = 0;
     config.board_dir = BOARD_ROTATION_90;
     config.touch.en = false;
     qmsd_board_init(&config);
@@ -202,7 +206,7 @@ void app_main(void) {
 
     lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_11,true);
     init_ntag();
-    //init_aht10(BOARD_I2C_SCL_PIN,BOARD_I2C_SDA_PIN);
+    init_aht10(BOARD_I2C_SCL_PIN,BOARD_I2C_SDA_PIN);
     vTaskDelay(500);
 
     lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_21,true);
@@ -238,16 +242,16 @@ void app_main(void) {
     lv_anim_start(&ams_ui.screen_31_anim);
 
     while(1){
-        //if(get_aht10_data(&temp,&hum) == 0 ){
-        //    memset(tempstr,0,sizeof(tempstr));
-        //    sprintf(tempstr,"%.1f°C",temp);
-        //    lv_label_set_text(ams_ui.screen_31_lab_temp,tempstr);
-        //
-        //    memset(tempstr,0,sizeof(tempstr));
-        //    sprintf(tempstr,"%d%%",((uint16_t)(hum*100))%100);
-        //    lv_label_set_text(ams_ui.screen_31_lab_hum, tempstr);
-        //    lv_bar_set_value(ams_ui.screen_31_bar_hum, ((uint16_t)(hum*100))%100, LV_ANIM_OFF);
-        //}
+        if(get_aht10_data(&temp,&hum) == 0 ){
+            memset(tempstr,0,sizeof(tempstr));
+            sprintf(tempstr,"%.1f°C",temp);
+            lv_label_set_text(ams_ui.screen_31_lab_temp,tempstr);
+        
+            memset(tempstr,0,sizeof(tempstr));
+            sprintf(tempstr,"%d%%",((uint16_t)(hum*100))%100);
+            lv_label_set_text(ams_ui.screen_31_lab_hum, tempstr);
+            lv_bar_set_value(ams_ui.screen_31_bar_hum, ((uint16_t)(hum*100))%100, LV_ANIM_OFF);
+        }
         if(xQueueReceive( xqueue_ams_msg,&filament_msg,10) == pdTRUE){
             filament_msg.amd_id = (filament_msg.amd_id > 3 ) ? 3 : filament_msg.amd_id;
             lv_label_set_text(filament_textlist[filament_msg.amd_id], filament_msg.filament_type);

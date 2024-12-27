@@ -25,7 +25,7 @@ void aht10_start_measure();
 
 esp_err_t init_aht10(uint8_t scl,uint8_t sda)
 {
-    aht10_device = i2c_malloc_device(I2C_NUM_0, sda, scl, 400000, AHT10_IIC_ADDR);
+    aht10_device = i2c_malloc_device(I2C_NUM_0, sda, scl, 100000, AHT10_IIC_ADDR);
     if(aht10_device == NULL){
         ESP_LOGE(TAG,"Is no memory to mallo i2c device");
         return ESP_ERR_NO_MEM;
