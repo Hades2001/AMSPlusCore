@@ -172,14 +172,16 @@ static void on_picc_state_changed(void *arg, esp_event_base_t base, int32_t even
         ESP_LOGI(TAG, "Card detected on the scanner #%d", scanner_no);
         rc522_picc_print(picc);
 
-        uint8_t *dataptr;
-        ndef_record *records;
+        uint8_t *dataptr = NULL;
+        ndef_record *records = NULL;
         ntag_read_ndef(scanner, picc, &dataptr, &records);
         if(records != NULL){
             parse_ntag(&records,scanner_no);
+            free_ndef_records(records);
         }
-        free_ndef_records(records);
-        free(dataptr);
+        if(dataptr != NULL ){
+            free(dataptr);
+        }
     }
     else if (picc->state == RC522_PICC_STATE_IDLE && event->old_state >= RC522_PICC_STATE_ACTIVE) {
         ESP_LOGI(TAG, "Card has been removed from the scanner #%d", scanner_no);

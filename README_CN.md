@@ -1,139 +1,71 @@
-# SDK启动流程
+# AMS Plus
 
-Init 开始->拉动复位引脚 -> 初始化屏幕 -> 初始化触摸 -> 初始化UI驱动 -> 开启线程更新UI->结束Init
+中文 [English](./README.md)
 
-启动代码：components/qmsd_board/xxx/xxx/qmsd_board.c， 可按需求进行更改
+AMS Plus 是一个用于 Bambu 3D 打印机的多色换料器（AMS）的扩展设备，旨在支持自动识别第三方耗材。
 
-# 可配置项
+![alt text](./image/AMSplus_img.png)
 
-SDK有默认初始化值，用户可按需求进行修改, 修改都可通过  ***menuconfig->QMSD Hal ***  进行配置, 也可修改初始化代码， 以下为可配置项：
+![alt text](./image/UI_image.png)
+## 硬件组成
 
-## 屏幕方向
+- **主控芯片**：ESP32S3
+- **RFID 模块**：两个 RC522 模块，用于读取粘贴于第三方耗材上的 NTAG 标签
+- **传感器模块**：温湿度传感器，用于监测 AMS 内部环境
+- **显示屏**：1.14 英寸液晶屏，用于显示耗材信息和环境数据
+- **供电模块**：无线供电模块，确保设备正常运行
 
-默认方向：  **BOARD_ROTATION_0**  ， 可配置为   **BOARD_ROTATION_90**  ，   **BOARD_ROTATION_180**  ，  **BOARD_ROTATION_270**  ，对应初始化代码：
+## 工作原理
 
-```
-qmsd_board_config_t config = QMSD_BOARD_DEFAULT_CONFIG;
-config.board_dir = BOARD_ROTATION_0;
-qmsd_board_init(&config);
-```
-> [!WARNING]
-> RGB屏幕目前不支持旋转
+1. **RFID 读取**：通过 RC522 模块读取粘贴在第三方耗材上的 NTAG 标签信息。
+2. **数据传输**：使用 MQTT 协议，将读取的耗材信息发送至 3D 打印机。
+3. **信息显示**：液晶屏实时显示当前耗材信息以及 AMS 内部的温湿度。
 
-## 背光
+![alt text](./image/hardware_desc.png)
 
-默认亮度100，delay时间200ms，可修改初始化代码：
+## 安装与使用
 
-```
-qmsd_board_config_t config = QMSD_BOARD_DEFAULT_CONFIG;
-config.backlight.value = 100.0;
-config.backlight.delay_ms = 200; // 自定义时间
-qmsd_board_init(&config);
-```
+1. **硬件连接**：按照硬件组成部分，将各模块与 ESP32S3 连接。
+2. **软件配置**：使用 ESP-IDF 5.1 编译并烧录固件。
+3. **AMS Plus配置**：
+   1. 首次使用会进入到配置页面，连接到屏幕上显示的Wi-Fi名称。
+   2. 连接成功后，设备屏幕会显示二维码，扫描二维码或者手动在浏览器地址栏输入192.168.4.1跳转到配置页面。
+   3. 配置页面输入用于连接的参数，注意AMS Plus仅支持2.4G频段的Wi-Fi，且AMS Plus要与Bambu 3D Pinter处于同一网段。
+   4. 配置完成后设备重启并连接到3D打印机，如果连接失败，请重复地2-3步。
+4. **标签写入**：使用支持 NTAG 技术的手机应用，将耗材信息写入标签，并粘贴于第三方耗材上。
+5. **设备安装**：将 AMS Plus 安装至 AMS 内部，确保无线供电正常工作。
 
-程序中进行背光设置：
+<img src="./image/amsconfig_web.png" alt="amsconfig_web" style="zoom:50%;" />
 
-```
-#include "qmsd_board.h"
+## 仓库文件结构
 
-// light: 0.0 ~ 100.0
-void qmsd_board_backlight_set(float light);
-
-// 延迟更新背光，避免开机时花屏
-void qmsd_board_backlight_set_delay(float light, uint32_t delay_ms);
-```
-
-## GUI
-
-支持  ***LVGL-8.3***  、  ***LVGL-7.11***  ，默认支持  ***LVGL-8.3***
-
-切换LVGL-8.3及LVGL-7.11：
-
-***menuconfig → Component config → LVGL configuration → Select UI_ENGINE***
-
-GUI 自身可配置项：
-
-***menuconfig  → Component config → LVGL configuration → LVGL configuration***
-
-可配置项：
-
-**config.gui.en**  -> 1：init时初始化GUI，0：不初始化GUI，需要使用其它未支持的UI驱动时可关闭GUI
-
-**config.gui.buffer_size**  -> byte，目前为GUI的单个buffer大小，0：全屏幕buffer
-
-**config.gui.update_task**  -> GUI 更新线程配置，可调优先级，线程大小，及使能，使能关闭后需自行调用GUI update 事件
-
-**config.gui.refresh_task**   -> 屏幕刷新线程，屏幕绘制函数放置另外线程刷新，不阻塞GUI计算绘制，单buffer模式无效
-
-**config.gui.flags.double_fb**  -> GUI是否开启双buffer刷新，0：单buffer，1：双buffer
-
-**config.gui.flags.fb_in_psram**   -> buffer 是否放置于psram，需要性能时可放置于内存，但是要注意buffer大小
-
-**config.gui.flags.full_refresh**   -> 使能后GUI每次绘制都为全局刷新
-
-**config.gui.flags.direct_mode**   -> 使能后GUI绘制的buffer为绝对坐标，正常无需修改
-
-**config.gui.flags.antialiasing**   -> 透传到lvgl的antialiasing选项
-
-**config.gui.flags.avoid_te**   -> 避免屏幕撕裂，目前只对RGB屏幕有效
-
-## 触摸
-
-支持线程异步刷新（线程安全），可配置触摸刷新线程的堆栈及使能，可配置i2c频率
+以下是 AMSPlusCore 仓库的文件结构：
 
 ```
-qmsd_board_config_t config = QMSD_BOARD_DEFAULT_CONFIG;
-config.touch.en = 1; // 0: 不开启触摸功能，1：开启线程读取
-config.touch.i2c_freq = 400000;
-config.touch.update_task.en = 1; // 0：同步刷新，调用touch_read_points时直接进行i2c读取
-config.touch.update_task.priority = 5; // 触摸线程优先级
-qmsd_board_init(&config);
+AMSPlusCore/
+├── components/           # 存放项目的组件代码
+├── main/                 # 主函数代码
+├── README.md             # 英文版项目说明文件
+└── README_CN.md          # 中文版项目说明文件
 ```
+## TODO
+* 增加存在多台AMS的支持
+* 记录耗材用量并写入NTAG标签
+* 创建并上传用于生成NTAG便签数据的web端代码
 
-# GUI 更新流程
+## 贡献
 
-***qmsd_board_init -> gui init -> gui_user_init -> gui_update***
+欢迎对 AMS Plus 项目提出建议或贡献代码。请通过 GitHub 提交 issue 或 pull request。
 
-gui init: gui 的初始化，buffer申请， 绑定触摸读取事件，绑定屏幕刷新回调
+## 许可证
 
-gui_user_init：用于初始化用户的gui入口函数，在app_main中调用
+本项目遵循 MIT 许可证。详情请参阅 LICENSE 文件。
 
-> [!NOTE]  
-> gui_user_init在app_main线程进行，如果stackoverflow，需要在gui_user_init中开启一次性GUI定时器（lv_timer），将初始化代码放置于定时器（在update task）运行，且需要扩大 config.gui.update_task.stack_size, 例如需要使用freetype建议扩大至 48 * 1024 Byte
+## 致谢
 
-gui_update: 位于gui.update_task线程运行，循环定时调用gui update
+感谢以下开源项目为 AMS Plus 的开发提供了支持和灵感：
 
-> [!NOTE]  
-> gui_update为线程调用，GUI刷新需要保证有线程安全，gui的函数必须放置于GUI的回调函数中执行，如果需要在其它线程执行，需要使用qmsd_gui_lock及qmsd_gui_unlock包裹gui代码
-
-```
-qmsd_gui_lock(portMAX_DELAY);
-lv_xxxx_xx();
-qmsd_gui_unlock();
-```
-
-# GUI内存占用
-
-默认：LV_MEM_SIZE_KILOBYTES = 32KB， GUI预先申请一整块连续内存，使用芯片内部内存
-
-如果GUI需要的控件太多了，32KB不够用，可进入menuconfig进行修改默认配置MEM_SIZE_KILOBYTES 
-
-如果内部内存不够，这部分可放置于PSRAM里，修改项目工程下的CMakeLists.txt, 例如
-
-```
-cmake_minimum_required(VERSION 3.5)
-
-# Here，
-add_definitions(-DLV_MEM_CUSTOM=1)
-  
-# LVGL 8.3
-add_definitions(-DCONFIG_LV_MEM_POOL_ALLOC=malloc)
-add_definitions(-DCONFIG_LV_MEM_POOL_INCLUDE=<stdlib.h>)
-# LVGL 7.11
-add_definitions(-DCONFIG_LV7_MEM_POOL_ALLOC=malloc)
-add_definitions(-DCONFIG_LV7_MEM_POOL_INCLUDE=<stdlib.h>)
-# End
-
-include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(get-start)
-```
+- **[RFID-Tag-Guide](https://github.com/Bambu-Research-Group/RFID-Tag-Guide)**：提供了关于 RFID 标签的详细指南和技术参考。
+- **[OpenBambuAPI](https://github.com/Doridian/OpenBambuAPI/tree/main)**：为 Bambu 打印机提供了开放的 API 支持。
+- **[OpenSpool](https://github.com/spuder/OpenSpool)**：对耗材信息管理提供了灵感和参考。
+- **[esp-idf-rc522](https://github.com/abobija/esp-idf-rc522)**：为 ESP32S3 集成 RC522 模块提供了驱动支持。
