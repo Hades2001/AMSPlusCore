@@ -50,7 +50,7 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-build/
+firmware/build/
 .vscode/
 # qmsd_esp32_sdk/
 QMSD-ESP32-BSP/

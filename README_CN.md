@@ -43,10 +43,12 @@ AMS Plus 是一个用于 Bambu 3D 打印机的多色换料器（AMS）的扩展�
 
 ```
 AMSPlusCore/
-├── components/           # 存放项目的组件代码
-├── main/                 # 主函数代码
-├── README.md             # 英文版项目说明文件
-└── README_CN.md          # 中文版项目说明文件
+├── AMSPlusDocs      # AMSPlus 的相关文档
+├── AMSPlusWebPage   # AMSPlus 标签生成网页
+├── firmware         # 固件目录
+│   ├── components   # 固件依赖组件
+│   ├── main         # 固件主函数
+└── image            # 图片目录
 ```
 ## TODO
 * 增加存在多台AMS的支持

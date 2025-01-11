@@ -41,12 +41,15 @@ AMS Plus is an extension device for the Bambu 3D printer's Automatic Material Sy
 ## Repository File Structure
 
 Here is the structure of the AMSPlusCore repository:
+
 ```
-AMSPlusCore/ 
-├── components/ # Contains project component code 
-├── main/ # Main function code 
-├── README.md # English project description 
-└── README_CN.md # Chinese project description
+AMSPlusCore/
+├── AMSPlusDocs      # Documentation related to AMSPlus
+├── AMSPlusWebPage   # AMSPlus tag generation webpage
+├── firmware         # Firmware directory
+│   ├── components   # Firmware dependencies
+│   ├── main         # Firmware main function
+└── image            # Image directory
 ```
 
 ## TODO

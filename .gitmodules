@@ -1,0 +1,6 @@
+[submodule "AMSPlusWebPage"]
+	path = AMSPlusWebPage
+	url = https://github.com/Hades2001/AMSPlusWebPage
+[submodule "AMSPlusDocs"]
+	path = AMSPlusDocs
+	url = https://github.com/Hades2001/AMSPlusDocs
