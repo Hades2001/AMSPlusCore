@@ -242,7 +242,7 @@ esp_err_t save_config_to_nvs(const http_config_t *config)
 }
 
 #define WIFI_AP_SSID_PREFIX "amsplus_"
-#define WIFI_AP_PASSWORD "88888888"
+#define WIFI_AP_PASSWORD "12345678"
 #define WIFI_AP_MAX_STA_CONN       (4)
 QueueHandle_t xqueue_http_msg; 
 
@@ -642,3 +642,399 @@ httpd_handle_t start_webserver(void)
     }
     return NULL;
 }
+
+#include "esp_ota_ops.h"
+#include "esp_flash_partitions.h"
+
+#define FIRMWARE_VERSION "1.0.1"
+#define OTA_WEB_PORT    80
+// 用于记录 OTA 升级进度（百分比）
+static int s_ota_progress = 0;
+
+// ================== OTA 相关 ================== //
+
+static esp_err_t write_ota_data(const char *data, size_t len, esp_ota_handle_t ota_handle)
+{
+    return esp_ota_write(ota_handle, data, len);
+}
+
+static esp_err_t finalize_ota(esp_ota_handle_t ota_handle, const esp_partition_t *partition)
+{
+    if (esp_ota_end(ota_handle) != ESP_OK) {
+        ESP_LOGE(TAG, "esp_ota_end failed");
+        return ESP_FAIL;
+    }
+    if (esp_ota_set_boot_partition(partition) != ESP_OK) {
+        ESP_LOGE(TAG, "esp_ota_set_boot_partition failed");
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "OTA done! Rebooting...");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    esp_restart();
+    return ESP_OK; // 不会真正执行到这里
+}
+
+// ========== 3. HTTP 服务器回调部分 ========== //
+
+// 主页：展示固件版本信息以及一个上传固件的表单（使用深色主题 + 弹性布局）
+static esp_err_t ota_get_handler(httpd_req_t *req)
+{
+    const char* resp_buf =              
+    "<!DOCTYPE html>"
+    "<html>"
+    "<head>"
+    "<meta charset=\"utf-8\">"
+    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>"
+    "<title>ESP32 OTA</title>"
+    "<style>"
+    "body {"
+    "  display: flex;"
+    "  flex-direction: column;"
+    "  justify-content: center;"
+    "  align-items: center;"
+    "  margin: 0;"
+    "  padding: 0;"
+    "  background-color: #333;"
+    "  color: #fff;"
+    "  font-family: Arial, Helvetica, sans-serif;"
+    "}"
+    ".container {"
+    "  max-width: 600px;"
+    "  width: 100%%;"
+    "  margin: 20px;"
+    "  padding: 20px;"
+    "  background-color: #444;"
+    "  border-radius: 8px;"
+    "  box-sizing: border-box;"
+    "}"
+    "h1 {"
+    "  margin-top: 0;"
+    "}"
+    "label {"
+    "  display: block;"
+    "  margin-top: 10px;"
+    "  margin-bottom: 5px;"
+    "}"
+    "input[type=\"file\"] {"
+    "  margin-bottom: 10px;"
+    "}"
+    "input[type=\"submit\"] {"
+    "  background-color: #008CBA;"
+    "  border: none;"
+    "  padding: 10px 20px;"
+    "  color: #fff;"
+    "  cursor: pointer;"
+    "  border-radius: 4px;"
+    "  margin-top: 10px;"
+    "}"
+    "input[type=\"submit\"]:hover {"
+    "  background-color: #007C9A;"
+    "}"
+    "p {"
+    "  margin: 10px 0;"
+    "}"
+    "#progress {"
+    "  font-weight: bold;"
+    "  color: #0f0;"
+    "}"
+    "hr {"
+    "  border: 1px solid #666;"
+    "  margin: 20px 0;"
+    "}"
+    "</style>"
+    "</head>"
+    "<body>"
+    "<div class=\"container\">"
+    "  <h1>AMS Plus OTA</h1>"
+    "  <p>Current firmware version："FIRMWARE_VERSION"</p>"
+    "  <form method=\"POST\" action=\"/upload\" enctype=\"multipart/form-data\">"
+    "    <label for=\"file\">Select Firmware File</label>"
+    "    <input type=\"file\" name=\"file\" id=\"file\">"
+    "    <input type=\"submit\" value=\"Upload and Update\" />"
+    "  </form>"
+    "  <hr />"
+    "</div>"
+    "</body>"
+    "</html>";
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_send(req, resp_buf, strlen(resp_buf));
+    return ESP_OK;
+}
+
+// 进度查询接口（返回一个数字，代表当前进度）
+static esp_err_t progress_get_handler(httpd_req_t *req)
+{
+    char resp_buf[8];
+    snprintf(resp_buf, sizeof(resp_buf), "%d", s_ota_progress);
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_send(req, resp_buf, strlen(resp_buf));
+    return ESP_OK;
+}
+
+typedef enum {
+    STATE_FIND_BOUNDARY,
+    STATE_PARSE_HEADERS,
+    STATE_IN_DATA,
+    STATE_FINISHED
+} upload_state_t;
+
+static esp_err_t upload_post_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "Start receiving firmware (multipart/form-data)");
+
+    // 1. 从头部获取 boundary
+    char content_type[128] = {0};
+    if (httpd_req_get_hdr_value_str(req, "Content-Type", content_type, sizeof(content_type)) != ESP_OK) {
+        ESP_LOGE(TAG, "Content-Type not found!");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Content-Type not found");
+        return ESP_FAIL;
+    }
+    const char *b_ptr = strstr(content_type, "boundary=");
+    if (!b_ptr) {
+        ESP_LOGE(TAG, "No boundary in Content-Type");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "No boundary in Content-Type");
+        return ESP_FAIL;
+    }
+    b_ptr += strlen("boundary=");
+    char boundary[64];
+    snprintf(boundary, sizeof(boundary), "--%s", b_ptr); // 需加 "--"
+    ESP_LOGI(TAG, "Boundary: %s", boundary);
+
+    // 2. OTA 准备
+    esp_ota_handle_t ota_handle = 0;
+    const esp_partition_t *partition = esp_ota_get_next_update_partition(NULL);
+    if (!partition) {
+        ESP_LOGE(TAG, "No OTA partition found!");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No OTA partition found");
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "Writing to partition subtype %d at offset %ld",
+             partition->subtype, partition->address);
+
+    if (esp_ota_begin(partition, OTA_SIZE_UNKNOWN, &ota_handle) != ESP_OK) {
+        ESP_LOGE(TAG, "esp_ota_begin failed!");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "esp_ota_begin failed");
+        return ESP_FAIL;
+    }
+    s_ota_progress = 0;
+
+    // 3. 状态机 & 行级缓冲
+    upload_state_t state = STATE_FIND_BOUNDARY;
+    static char line_buf[1024];
+    int line_pos = 0; // 当前 line_buf 中有效数据长度
+
+    while (1) {
+        // 每次收一小块
+        char temp_buf[128];
+        int recv_len = httpd_req_recv(req, temp_buf, sizeof(temp_buf));
+        if (recv_len < 0) {
+            // 出错或断开
+            ESP_LOGE(TAG, "httpd_req_recv failed: %d", recv_len);
+            esp_ota_end(ota_handle);
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Receive error");
+            return ESP_FAIL;
+        } else if (recv_len == 0) {
+            // 连接关闭 or 数据结束
+            break;
+        }
+
+        int offset = 0;
+        while (offset < recv_len) {
+            // 如果正处于STATE_IN_DATA，我们需要检测 boundary；否则拼行解析
+            if (state == STATE_IN_DATA) {
+                // 检查是否出现 boundary
+                // simplest approach: look for boundary as a substring in the chunk
+                // 但 boundary 可能跨 chunk，需要稍微拼到 line_buf 里做搜索
+
+                // 先把本次数据放到 line_buf (暂存区)
+                int can_copy = sizeof(line_buf) - line_pos - 1;
+                if (can_copy > (recv_len - offset)) {
+                    can_copy = (recv_len - offset);
+                }
+                memcpy(&line_buf[line_pos], &temp_buf[offset], can_copy);
+                line_pos += can_copy;
+                line_buf[line_pos] = '\0';
+                offset += can_copy;
+
+                // 搜索 boundary
+                char *found = strstr(line_buf, boundary);
+                if (found) {
+                    // 找到 boundary，就表示文件数据到此结束
+                    int boundary_idx = (int)(found - line_buf);
+
+                    // boundary 之前的内容才是固件
+                    if (boundary_idx > 0) {
+                        // 写入 OTA
+                        esp_err_t r = write_ota_data(line_buf, boundary_idx, ota_handle);
+                        if (r != ESP_OK) {
+                            ESP_LOGE(TAG, "OTA write error in data section");
+                            esp_ota_end(ota_handle);
+                            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA write error");
+                            return ESP_FAIL;
+                        }
+                    }
+
+                    // boundary 后面有可能是 `\r\n` 或 `--` 表示结束
+                    // 把 boundary 之后的内容移到 line_buf 开头
+                    int remain = line_pos - (boundary_idx + strlen(boundary));
+                    if (remain > 0) {
+                        memmove(line_buf, &line_buf[boundary_idx + strlen(boundary)], remain);
+                    }
+                    line_pos = remain;
+                    line_buf[line_pos] = '\0';
+
+                    // 进入下一步
+                    ESP_LOGI(TAG, "Found boundary => finishing OTA data");
+                    state = STATE_PARSE_HEADERS; // 可能还有下一个表单字段(本例只处理一个文件)
+                } else {
+                    // 未找到 boundary，则全部内容都是固件
+                    // 为了不重复写入，需要把 line_buf 里能确认无 boundary 的部分写入
+                    // 简单做法：假设 boundary 很短(<=64)，可以留出足够余量在 line_buf 里
+                    // 先写入 line_buf 长度的一半，留一部分用来匹配可能的 boundary 跨界
+                    int safe_len = line_pos - 64; 
+                    if (safe_len < 0) safe_len = 0;
+
+                    if (safe_len > 0) {
+                        esp_err_t r = write_ota_data(line_buf, safe_len, ota_handle);
+                        if (r != ESP_OK) {
+                            ESP_LOGE(TAG, "OTA write error in partial data");
+                            esp_ota_end(ota_handle);
+                            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA write error");
+                            return ESP_FAIL;
+                        }
+                        // 把剩余数据往前挪
+                        int remain = line_pos - safe_len;
+                        memmove(line_buf, &line_buf[safe_len], remain);
+                        line_pos = remain;
+                    }
+                    // 增加进度（演示用）
+                    if (s_ota_progress < 100) s_ota_progress++;
+                }
+            } 
+            else {
+                // 不在 DATA 状态，说明要按行解析 (STATE_FIND_BOUNDARY or STATE_PARSE_HEADERS)
+                char c = temp_buf[offset++];
+                if (c == '\n') {
+                    // 行结束(注意行尾可能是 "\r\n" 或 "\n")
+                    line_buf[line_pos] = '\0';
+
+                    // 去除行尾的 '\r'
+                    if (line_pos > 0 && line_buf[line_pos-1] == '\r') {
+                        line_buf[line_pos-1] = '\0';
+                    }
+
+                    // 解析此行
+                    if (state == STATE_FIND_BOUNDARY) {
+                        // 等待出现第一行 boundary: `--xxxxxx`
+                        if (strcmp(line_buf, boundary) == 0) {
+                            ESP_LOGI(TAG, "First boundary found => parse headers next");
+                            state = STATE_PARSE_HEADERS;
+                        }
+                    } 
+                    else if (state == STATE_PARSE_HEADERS) {
+                        // 如果这一行为空，表示 headers 结束，进入数据区
+                        if (strlen(line_buf) == 0) {
+                            ESP_LOGI(TAG, "Headers end => in data");
+                            state = STATE_IN_DATA;
+                            line_pos = 0;
+                            line_buf[0] = '\0';
+                        } else {
+                            // 可能是: Content-Disposition / Content-Type 等
+                            ESP_LOGD(TAG, "Header line: %s", line_buf);
+                        }
+                    }
+                    line_pos = 0; // 重置行缓冲
+                    line_buf[0] = '\0';
+                } else {
+                    // 累计到行缓冲
+                    if (line_pos < (int)(sizeof(line_buf) - 1)) {
+                        line_buf[line_pos++] = c;
+                    } else {
+                        // 行过长，可能是异常
+                        line_buf[line_pos] = '\0';
+                        ESP_LOGW(TAG, "Header line too long, truncating: %s", line_buf);
+                        line_pos = 0;
+                    }
+                }
+            }
+        }
+
+        // 如果已经读完并且状态是 FINISHED 就退出
+        if (state == STATE_FINISHED) {
+            break;
+        }
+    }
+
+    // 如果最后是在 STATE_IN_DATA，说明没有 boundary 截断
+    if (state == STATE_IN_DATA) {
+        // 说明文件数据直到 EOF 结束(不太符合multipart规范，但也有可能)
+        // 写剩余在line_buf中的数据
+        if (line_pos > 0) {
+            esp_err_t r = write_ota_data(line_buf, line_pos, ota_handle);
+            if (r != ESP_OK) {
+                ESP_LOGE(TAG, "OTA write error at finalize");
+                esp_ota_end(ota_handle);
+                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA write error");
+                return ESP_FAIL;
+            }
+        }
+        line_pos = 0;
+        ESP_LOGI(TAG, "No boundary found before EOF, finalize anyway...");
+    }
+
+    // 返回响应
+    httpd_resp_sendstr(req, "OTA update successful! Rebooting...");
+
+    // OTA finalize
+    if (finalize_ota(ota_handle, partition) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA finalize failed");
+        return ESP_FAIL;
+    }
+
+
+    return ESP_OK;
+}
+
+
+// 注册 URI 路由
+httpd_handle_t start_ota_webserver(void)
+{
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.server_port = OTA_WEB_PORT;
+
+    httpd_handle_t server = NULL;
+    if (httpd_start(&server, &config) == ESP_OK) {
+        // 根路径 GET
+        httpd_uri_t root_uri = {
+            .uri       = "/",
+            .method    = HTTP_GET,
+            .handler   = ota_get_handler,
+            .user_ctx  = NULL
+        };
+        httpd_register_uri_handler(server, &root_uri);
+
+        // 进度查询 GET
+        httpd_uri_t progress_uri = {
+            .uri       = "/progress",
+            .method    = HTTP_GET,
+            .handler   = progress_get_handler,
+            .user_ctx  = NULL
+        };
+        httpd_register_uri_handler(server, &progress_uri);
+
+        // 固件上传 POST
+        httpd_uri_t upload_uri = {
+            .uri       = "/upload",
+            .method    = HTTP_POST,
+            .handler   = upload_post_handler,
+            .user_ctx  = NULL
+        };
+        httpd_register_uri_handler(server, &upload_uri);
+
+        ESP_LOGI(TAG, "HTTP server started on port %d", config.server_port);
+    } else {
+        ESP_LOGE(TAG, "Error starting server!");
+    }
+    return server;
+}
+

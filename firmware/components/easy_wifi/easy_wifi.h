@@ -52,6 +52,7 @@ esp_err_t load_config_from_nvs(http_config_t *config);
 void wifi_init_softap(void *event_handler_arg);
 void generate_softap_ssid(char* buff, size_t size);
 httpd_handle_t start_webserver(void);
+httpd_handle_t start_ota_webserver(void);
 
 extern EventGroupHandle_t s_wifi_event_group;
 extern QueueHandle_t xqueue_http_msg;

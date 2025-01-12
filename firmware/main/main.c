@@ -127,6 +127,7 @@ void connect_to_wifi(){
             reconfigAMSPlus();
         }
         connect_mqtt(&device_config);
+        start_ota_webserver();
         lv_label_set_text(ams_ui.screen_21_lab_SSID, "Connecting to print mqtt");
         sysstate = kSYS_CONNECT_MQTT;
         
@@ -195,7 +196,7 @@ void init_ntag()
     rc522_register_events(scanner_2, RC522_EVENT_PICC_STATE_CHANGED, on_picc_state_changed, scanner_2);
 
     // Start scanners
-        rc522_start(scanner_1);
+    rc522_start(scanner_1);
     rc522_start(scanner_2);
 }
 

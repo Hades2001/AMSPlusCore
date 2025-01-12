@@ -157,8 +157,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
         filament_msg.event_id = event_id;
         filament_msg.msg_id = msg_id;
-        printf("TOPIC=%.*s topic_len = %d\r\n", event->topic_len, event->topic, event->total_data_len);
-        printf("DATA=%.*s\r\n", event->data_len, event->data);
+        //printf("TOPIC=%.*s topic_len = %d\r\n", event->topic_len, event->topic, event->total_data_len);
+        //printf("DATA=%.*s\r\n", event->data_len, event->data);
         resolution_report(event->data,&filament_msg);
         
         break;

@@ -145,7 +145,7 @@ void setup_scr_screen_00(lv_ui *ui){
 	lv_obj_set_pos(ui->screen_00_label_2, 41, 96);
 	lv_obj_set_size(ui->screen_00_label_2, 190, 25);
 	lv_obj_set_scrollbar_mode(ui->screen_00_label_2, LV_SCROLLBAR_MODE_OFF);
-	lv_label_set_text(ui->screen_00_label_2, "Wi-Fi PWD:88888888");
+	lv_label_set_text(ui->screen_00_label_2, "Wi-Fi PWD:12345678");
 	lv_label_set_long_mode(ui->screen_00_label_2, LV_LABEL_LONG_WRAP);
 
 	//Write style state: LV_STATE_DEFAULT for style_screen_00_label_2_main_main_default
