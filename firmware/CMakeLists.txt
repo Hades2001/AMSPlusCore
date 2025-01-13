@@ -6,13 +6,13 @@ cmake_minimum_required(VERSION 3.5)
 # set(ENV{QMSD_8MS_PATH} ${CMAKE_SOURCE_DIR}/qmsd_esp32_sdk)
 
 if(NOT DEFINED ENV{QMSD_8MS_PATH})
-    get_filename_component(QMSD_8MS_PATH "${CMAKE_SOURCE_DIR}/../.." ABSOLUTE)
+    get_filename_component(QMSD_8MS_PATH "${CMAKE_SOURCE_DIR}/QMSD-ESP32-BSP" ABSOLUTE)
     set(ENV{QMSD_8MS_PATH} ${QMSD_8MS_PATH})
 endif()
 
 include($ENV{QMSD_8MS_PATH}/component.cmake)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(get-start)
+project(AMSPlus)
 
 
-target_add_binary_data(get-start.elf "main/ca_certificate.pem" TEXT)
+target_add_binary_data(AMSPlus.elf "main/ca_certificate.pem" TEXT)

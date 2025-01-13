@@ -4,9 +4,7 @@
 
 AMS Plus is an extension device for the Bambu 3D printer's Automatic Material System (AMS) designed to support the automatic identification of third-party filaments.
 
-[![Discord](.\image\Discord.png)](https://discord.gg/RbESV7gd)
-[DIscord Group](https://discord.gg/RbESV7gd)
-
+[![Discord](./image/Discord.png)](https://discord.gg/RbESV7gd)
 
 ![alt text](./image/AMSplus_img.png)
 
@@ -30,17 +28,13 @@ AMS Plus is an extension device for the Bambu 3D printer's Automatic Material Sy
 
 ## Installation and Usage
 
-1. **Hardware Connection**: Connect all modules to the ESP32S3 as per the hardware configuration.
-2. **Software Configuration**: Use ESP-IDF 5.1 to compile and flash the firmware.
-3. **AMS Plus Configuration**:
-   1. Upon first use, the device will enter configuration mode and display a Wi-Fi network name on the screen.
-   2. Connect to the displayed Wi-Fi network, and the screen will show a QR code. Scan the QR code or manually enter `192.168.4.1` in your browser to access the configuration page.
-   3. On the configuration page, input the necessary parameters. Note that AMS Plus only supports 2.4GHz Wi-Fi and must be on the same subnet as the Bambu 3D Printer.
-   4. Once configuration is complete, the device will restart and connect to the 3D printer. If the connection fails, repeat steps 2-3.
-4. **Tag Writing**: Use a smartphone application that supports NTAG technology to write filament information onto the tags and attach them to third-party filaments.
-5. **Device Installation**: Install AMS Plus inside the AMS, ensuring that the wireless power supply works properly.
 
-<img src="./image/amsconfig_web.png" alt="amsconfig_web" style="zoom:50%;" />
+Refer to the guidance documents in [AMSPlusDocs](https://github.com/Hades2001/AMSPlusDocs)
+
+Installation_Guide/: [Installation Guide](https://github.com/Hades2001/AMSPlusDocs/blob/main/Installation_Guide/AMSPlus_Installation_Guide_V13.pdf)
+![alt text](./image/Installation_Guid_img.png)
+user_Guide/: [Usage Guide](https://github.com/Hades2001/AMSPlusDocs/blob/main/user_Guide/AMSPlus_User_Guide.drawio.pdf)
+![alt text](./image/User_Guid_img.png)
 
 ## Repository File Structure
 
@@ -61,9 +55,18 @@ AMSPlusCore/
 - Track filament usage and write the data to NTAG tags
 - Develop and upload web-based code for generating NTAG tag data
 
-## Contribution
+## Thanks to the following individuals for their support: 
+
+
+|   |   |   |
+| --- | --- | --- |
+| <img src="https://avatars.githubusercontent.com/EeeeBin" width="100" alt="EeeeBin"> | [EeeeBin](https://github.com/EeeeBin) | Technical support for ESP32S3-related optimizations |
+| <img src="https://avatars.githubusercontent.com/ggadc" width="100" alt="ggadc"> | [ggadc](https://github.com/ggadc)     | Code support for UI/LVGL development      
+
+## Contribution 
 
 We welcome suggestions and contributions to the AMS Plus project. Please submit issues or pull requests via GitHub.
+
 
 ## License
 
