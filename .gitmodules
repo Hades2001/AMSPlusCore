@@ -4,3 +4,6 @@
 [submodule "AMSPlusDocs"]
 	path = AMSPlusDocs
 	url = https://github.com/Hades2001/AMSPlusDocs
+[submodule "firmware/QMSD-ESP32-BSP"]
+	path = firmware/QMSD-ESP32-BSP
+	url = https://github.com/smartpanle/QMSD-ESP32-BSP
