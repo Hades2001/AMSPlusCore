@@ -7,3 +7,6 @@
 [submodule "firmware/QMSD-ESP32-BSP"]
 	path = firmware/QMSD-ESP32-BSP
 	url = https://github.com/smartpanle/QMSD-ESP32-BSP
+[submodule "firmware/components/esp-idf-rc522"]
+	path = firmware/components/esp-idf-rc522
+	url = https://github.com/Hades2001/esp-idf-rc522
