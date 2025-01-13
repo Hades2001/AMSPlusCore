@@ -4,6 +4,10 @@
 
 AMS Plus is an extension device for the Bambu 3D printer's Automatic Material System (AMS) designed to support the automatic identification of third-party filaments.
 
+[![Discord](.\image\Discord.png)](https://discord.gg/RbESV7gd)
+[DIscord Group](https://discord.gg/RbESV7gd)
+
+
 ![alt text](./image/AMSplus_img.png)
 
 ![alt text](./image/UI_image.png)
