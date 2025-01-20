@@ -56,3 +56,4 @@ httpd_handle_t start_ota_webserver(void);
 
 extern EventGroupHandle_t s_wifi_event_group;
 extern QueueHandle_t xqueue_http_msg;
+extern QueueHandle_t xqueue_ota_msg;

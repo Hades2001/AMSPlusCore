@@ -89,6 +89,8 @@ void setup_scr_screen_5(lv_ui *ui){
 	ui->screen_00 = lv_tileview_add_tile(ui->screen_5_tileview_1, 1 , 1, LV_DIR_ALL);
 	
 	ui->screen_31 = lv_tileview_add_tile(ui->screen_5_tileview_1, 2 , 0, LV_DIR_ALL);
+
+	ui->screen_41 = lv_tileview_add_tile(ui->screen_5_tileview_1, 3 , 0, LV_DIR_ALL);
 	
 #endif
 }

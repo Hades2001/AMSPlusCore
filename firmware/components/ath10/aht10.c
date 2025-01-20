@@ -27,13 +27,18 @@ esp_err_t init_aht10(uint8_t scl,uint8_t sda)
 {
     aht10_device = i2c_malloc_device(I2C_NUM_0, sda, scl, 100000, AHT10_IIC_ADDR);
     if(aht10_device == NULL){
+
         ESP_LOGE(TAG,"Is no memory to mallo i2c device");
         return ESP_ERR_NO_MEM;
     }
     aht10_reset();
     vTaskDelay(pdMS_TO_TICKS(20));
     uint8_t data[2] = {0x08, 0x00};
-    i2c_write_bytes(aht10_device, 0xbe, data, 2);
+    ;
+    if(i2c_write_bytes(aht10_device, 0xbe, data, 2) == I2C_FAIL){
+        i2c_free_device(aht10_device);
+        return ESP_FAIL;
+    }
     vTaskDelay(pdMS_TO_TICKS(10));
 
     xAHT10Semaphore1 = xSemaphoreCreateBinary();
@@ -77,6 +82,7 @@ void ath10_read_task(void *arg) {
     
     aht10_d_t aht_data;
     aht10_start_measure();
+    vTaskDelay(200);
     while(1){
         i2c_read_bytes(aht10_device, 0x71, aht_data.raw_data, 6);
         if(aht_data.raw_data[0] & 0x80){

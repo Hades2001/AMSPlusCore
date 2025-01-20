@@ -9,6 +9,7 @@ idf_component_register(
     SRCS "ui_resource/lv_font_Teko_Regular_17.c"
     SRCS "ui_resource/_count_26x26.c"
     SRCS "ui_resource/_icon_18x17.c"
+    SRCS "ui_resource/_ota_32x32.c"
     SRCS "ui_resource/_wifi_50x38.c"
     SRCS "ui_resource/_wifi_s_20x16.c"
     SRCS "ui_resource/_wifi_s_33x25.c"
@@ -21,6 +22,7 @@ idf_component_register(
     SRCS "gui/setup_scr_screen_11.c"
     SRCS "gui/setup_scr_screen_21.c"
     SRCS "gui/setup_scr_screen_31.c"
+    SRCS "gui/setup_scr_screen_41.c"
     SRCS "gui/setup_scr_screen_5.c"
 
     SRCS "main.c"

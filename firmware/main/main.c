@@ -19,6 +19,7 @@
 lv_ui ams_ui;
 extern QueueHandle_t xqueue_ams_msg; 
 
+
 enum{
     kSYS_IDLE= 0,
     kSYS_CONNECT_WFIF,
@@ -78,7 +79,6 @@ void connect_to_wifi(){
     if ((ret != ESP_OK) || strlen(device_config.ssid) == 0 || strlen(device_config.password) == 0) {
         
         wifi_init_softap(&wifi_event_handler);
-        vTaskDelay(1000);
         generate_softap_ssid(ssid,sizeof(ssid));
         sprintf(formatbuff,"Wi-Fi SSID:%s",ssid);
         lv_label_set_text(ams_ui.screen_00_lab_desctext, formatbuff);
@@ -189,15 +189,20 @@ static void on_picc_state_changed(void *arg, esp_event_base_t base, int32_t even
     }
 }
 
-void init_ntag()
+int init_ntag()
 {
     // Register events for each scanner
     rc522_register_events(scanner_1, RC522_EVENT_PICC_STATE_CHANGED, on_picc_state_changed, scanner_1);
     rc522_register_events(scanner_2, RC522_EVENT_PICC_STATE_CHANGED, on_picc_state_changed, scanner_2);
 
     // Start scanners
-    rc522_start(scanner_1);
-    rc522_start(scanner_2);
+    if(rc522_start(scanner_1) != ESP_OK ){
+        return ESP_FAIL;
+    }
+    if(rc522_start(scanner_2) != ESP_OK ){
+        return ESP_FAIL;
+    }
+    return ESP_OK;
 }
 
 void gui_user_init() {
@@ -217,14 +222,47 @@ void app_main(void) {
     config.board_dir = BOARD_ROTATION_90;
     config.touch.en = false;
     qmsd_board_init(&config);
-    printf("Fine qmsd!\r\n");
 
     lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_11,true);
-    init_ntag();
-    init_aht10(BOARD_I2C_SCL_PIN,BOARD_I2C_SDA_PIN);
-    vTaskDelay(500);
-
+    vTaskDelay(200);
     lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_21,true);
+    esp_err_t ntag_res,ath10_res;
+    bool isError = false;
+    do
+    {
+        ntag_res = init_ntag();
+        if((isError == false) && (ntag_res != ESP_OK)){
+            ESP_LOGE(TAG,"Failed to initialize RC522");
+            lv_obj_add_flag(ams_ui.screen_21_img_1, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_text_color(ams_ui.screen_21_lab_SSID,lv_color_make(0xff, 0x00, 0x00),LV_PART_MAIN|LV_STATE_DEFAULT);
+            lv_label_set_text(ams_ui.screen_21_lab_SSID, "Failed to initialize RC522");
+            isError = true;
+        }
+        else if((isError == true) && (ntag_res != ESP_OK)){
+            ESP_LOGE(TAG,"Re - initialize RC522");
+            vTaskDelay(1000);
+        }
+    } while (isError);
+    isError = false;
+    do
+    {
+        ath10_res = init_aht10(BOARD_I2C_SCL_PIN,BOARD_I2C_SDA_PIN);
+        if((isError == false) && (ath10_res != ESP_OK)){
+            ESP_LOGE(TAG,"Failed to initialize ATH10");
+            lv_obj_add_flag(ams_ui.screen_21_img_1, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_text_color(ams_ui.screen_21_lab_SSID,lv_color_make(0xff, 0x00, 0x00),LV_PART_MAIN|LV_STATE_DEFAULT);
+            lv_label_set_text(ams_ui.screen_21_lab_SSID, "Failed to initialize ATH10");
+            isError = true;
+        }
+        else if((isError == true) && (ath10_res != ESP_OK)){
+            ESP_LOGE(TAG,"Re - initialize ATH10");
+            vTaskDelay(1000);
+        }
+    } while (isError);
+
+    lv_obj_set_style_text_color(ams_ui.screen_21_lab_SSID,lv_color_make(0xff, 0xff, 0xff),LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_clear_flag(ams_ui.screen_21_img_1, LV_OBJ_FLAG_HIDDEN);
+    
     connect_to_wifi();
 
     float temp,hum;
@@ -245,6 +283,7 @@ void app_main(void) {
 
     int cnt = 200;
     int flush_ams_cnt = 19;
+    int ota_s_ota_progress = -1;
     bool is_flushing_filament = true;
 
     filament_msg_t filament_msg;
@@ -297,6 +336,13 @@ void app_main(void) {
             }
             if( flush_ams_cnt > -1){
                 flush_ams_cnt --;
+            }
+
+            if(xQueueReceive(xqueue_ota_msg,&ota_s_ota_progress,10) == pdTRUE){
+                if(ota_s_ota_progress >= 0){
+                    lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_41,true);
+                    lv_bar_set_value(ams_ui.screen_41_bar_ota, ota_s_ota_progress, LV_ANIM_OFF);
+                }
             }
         }
 

@@ -16,6 +16,7 @@ void init_scr_del_flag(lv_ui *ui){
 	ui->screen_21_del = true;
 	ui->screen_5_del = true;
 	ui->screen_31_del = true;
+	ui->screen_41_del = true;
 }
 
 void setup_ui(lv_ui *ui){
@@ -30,4 +31,5 @@ void setup_ui(lv_ui *ui){
 	setup_scr_screen_11(ui);
 	setup_scr_screen_21(ui);
 	setup_scr_screen_31(ui);
+	setup_scr_screen_41(ui);
 }

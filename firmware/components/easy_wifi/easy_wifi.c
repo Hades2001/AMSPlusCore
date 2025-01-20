@@ -646,12 +646,14 @@ httpd_handle_t start_webserver(void)
 #include "esp_ota_ops.h"
 #include "esp_flash_partitions.h"
 
-#define FIRMWARE_VERSION "1.0.1"
+#define FIRMWARE_VERSION "1.0.3"
 #define OTA_WEB_PORT    80
-// 用于记录 OTA 升级进度（百分比）
-static int s_ota_progress = 0;
 
-// ================== OTA 相关 ================== //
+static int s_ota_progress = -1;
+
+QueueHandle_t xqueue_ota_msg; 
+
+// ================== OTA ================== //
 
 static esp_err_t write_ota_data(const char *data, size_t len, esp_ota_handle_t ota_handle)
 {
@@ -800,6 +802,9 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
     snprintf(boundary, sizeof(boundary), "--%s", b_ptr); // 需加 "--"
     ESP_LOGI(TAG, "Boundary: %s", boundary);
 
+    s_ota_progress = 0;
+    xQueueSend(xqueue_ota_msg, &s_ota_progress, 0);
+
     // 2. OTA 准备
     esp_ota_handle_t ota_handle = 0;
     const esp_partition_t *partition = esp_ota_get_next_update_partition(NULL);
@@ -816,7 +821,9 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "esp_ota_begin failed");
         return ESP_FAIL;
     }
-    s_ota_progress = 0;
+    
+    s_ota_progress = 10;
+    xQueueSend(xqueue_ota_msg, &s_ota_progress, 0);
 
     // 3. 状态机 & 行级缓冲
     upload_state_t state = STATE_FIND_BOUNDARY;
@@ -909,6 +916,7 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
                     }
                     // 增加进度（演示用）
                     if (s_ota_progress < 100) s_ota_progress++;
+                    xQueueSend(xqueue_ota_msg, &s_ota_progress, 0);
                 }
             } 
             else {
@@ -1035,6 +1043,9 @@ httpd_handle_t start_ota_webserver(void)
     } else {
         ESP_LOGE(TAG, "Error starting server!");
     }
+
+    xqueue_ota_msg = xQueueCreate(5,sizeof(int));
+
     return server;
 }
 

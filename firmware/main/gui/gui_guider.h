@@ -69,6 +69,12 @@ typedef struct
 	lv_obj_t *screen_31_bar_hum;
 	lv_anim_t screen_31_anim;
 
+	lv_obj_t *screen_41;
+	bool screen_41_del;
+	lv_obj_t *screen_41_img_ota;
+	lv_obj_t *screen_41_label_ota;
+	lv_obj_t *screen_41_bar_ota;
+
 	lv_obj_t *qr_code;
 }lv_ui;
 
@@ -81,11 +87,13 @@ void setup_scr_screen_11(lv_ui *ui);
 void setup_scr_screen_21(lv_ui *ui);
 void setup_scr_screen_31(lv_ui *ui);
 void setup_scr_screen_5(lv_ui *ui);
+void setup_scr_screen_41(lv_ui *ui);
 LV_IMG_DECLARE(_wifi_s_33x25);
 LV_IMG_DECLARE(_count_26x26);
 LV_IMG_DECLARE(_wifi_s_20x16);
 LV_IMG_DECLARE(_icon_18x17);
 LV_IMG_DECLARE(_wifi_50x38);
+LV_IMG_DECLARE(_ota_32x32);
 
 #ifdef __cplusplus
 }
