@@ -8,7 +8,7 @@ AMS Plus is an extension device for the Bambu 3D printer's Automatic Material Sy
 >
 > Please note that the latest security update from Bambu will cause this project to become ineffective. The current version of the project requires MQTTS support. If you wish to continue using the project, please keep an eye on Bambu’s latest announcements and either retain the current firmware version or run in developer mode.
 
-[![Discord](./image/Discord.png)](https://discord.gg/RbESV7gd)
+[![Discord](./image/Discord.png)](https://discord.gg/CgnDFVFB)
 
 ![alt text](./image/AMSplus_img.png)
 
