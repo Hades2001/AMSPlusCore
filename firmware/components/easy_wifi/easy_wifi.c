@@ -646,7 +646,7 @@ httpd_handle_t start_webserver(void)
 #include "esp_ota_ops.h"
 #include "esp_flash_partitions.h"
 
-#define FIRMWARE_VERSION "1.0.3"
+#define FIRMWARE_VERSION "1.0.4"
 #define OTA_WEB_PORT    80
 
 static int s_ota_progress = -1;

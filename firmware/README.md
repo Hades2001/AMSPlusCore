@@ -3,6 +3,10 @@
 This document provides step-by-step instructions to compile the AMS Plus embedded firmware for ESP32S3. Please ensure you have the required tools and dependencies installed before proceeding.
 
 
+> [!IMPORTANT]
+>
+> Please note that the latest security update from Bambu will cause this project to become ineffective. The current version of the project requires MQTTS support. If you wish to continue using the project, please keep an eye on Bambu’s latest announcements and either retain the current firmware version or run in developer mode.
+
 ## Prerequisites
 
 1. **ESP-IDF Environment**:  
