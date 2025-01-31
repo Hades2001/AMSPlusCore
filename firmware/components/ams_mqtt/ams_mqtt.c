@@ -224,7 +224,7 @@ void init_mqtt(char* printer_ip,char* printer_password,char* printer_device_id)
             .authentication.password = device_password
         },
         .buffer = {
-            .size = 8 * 1024,
+            .size = 16 * 1024,
         }
     };
 
