@@ -646,7 +646,7 @@ httpd_handle_t start_webserver(void)
 #include "esp_ota_ops.h"
 #include "esp_flash_partitions.h"
 
-#define FIRMWARE_VERSION "1.0.4"
+#define FIRMWARE_VERSION "1.0.5"
 #define OTA_WEB_PORT    80
 
 static int s_ota_progress = -1;
@@ -678,88 +678,139 @@ static esp_err_t finalize_ota(esp_ota_handle_t ota_handle, const esp_partition_t
 
 // ========== 3. HTTP 服务器回调部分 ========== //
 
-// 主页：展示固件版本信息以及一个上传固件的表单（使用深色主题 + 弹性布局）
-static esp_err_t ota_get_handler(httpd_req_t *req)
-{
-    const char* resp_buf =              
+const char *html_template =
     "<!DOCTYPE html>"
-    "<html>"
+    "<html lang=\"en\">"
     "<head>"
-    "<meta charset=\"utf-8\">"
-    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>"
-    "<title>ESP32 OTA</title>"
-    "<style>"
-    "body {"
-    "  display: flex;"
-    "  flex-direction: column;"
-    "  justify-content: center;"
-    "  align-items: center;"
-    "  margin: 0;"
-    "  padding: 0;"
-    "  background-color: #333;"
-    "  color: #fff;"
-    "  font-family: Arial, Helvetica, sans-serif;"
-    "}"
-    ".container {"
-    "  max-width: 600px;"
-    "  width: 100%%;"
-    "  margin: 20px;"
-    "  padding: 20px;"
-    "  background-color: #444;"
-    "  border-radius: 8px;"
-    "  box-sizing: border-box;"
-    "}"
-    "h1 {"
-    "  margin-top: 0;"
-    "}"
-    "label {"
-    "  display: block;"
-    "  margin-top: 10px;"
-    "  margin-bottom: 5px;"
-    "}"
-    "input[type=\"file\"] {"
-    "  margin-bottom: 10px;"
-    "}"
-    "input[type=\"submit\"] {"
-    "  background-color: #008CBA;"
-    "  border: none;"
-    "  padding: 10px 20px;"
-    "  color: #fff;"
-    "  cursor: pointer;"
-    "  border-radius: 4px;"
-    "  margin-top: 10px;"
-    "}"
-    "input[type=\"submit\"]:hover {"
-    "  background-color: #007C9A;"
-    "}"
-    "p {"
-    "  margin: 10px 0;"
-    "}"
-    "#progress {"
-    "  font-weight: bold;"
-    "  color: #0f0;"
-    "}"
-    "hr {"
-    "  border: 1px solid #666;"
-    "  margin: 20px 0;"
-    "}"
-    "</style>"
+    "    <meta charset=\"UTF-8\">"
+    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+    "    <title>Firmware Upload</title>"
+    "    <style>"
+    "        body {"
+    "            font-family: Arial, sans-serif;"
+    "            background-color: #2e2e2e;"
+    "            color: white;"
+    "            display: flex;"
+    "            justify-content: center;"
+    "            align-items: center;"
+    "            height: 100vh;"
+    "            margin: 0;"
+    "        }"
+    "        .container {"
+    "            background-color: #3a3a3a;"
+    "            padding: 20px;"
+    "            border-radius: 10px;"
+    "            text-align: center;"
+    "        }"
+    "        input[type=\"file\"] {"
+    "            background-color: #333;"
+    "            color: #fff;"
+    "            border: 1px solid #666;"
+    "            padding: 10px;"
+    "            border-radius: 5px;"
+    "        }"
+    "        input[type=\"file\"]:hover {"
+    "            cursor: pointer;"
+    "        }"
+    "        #updateButton {"
+    "            background-color: #555;"
+    "            color: #888;"
+    "            border: 1px solid #666;"
+    "            padding: 10px 20px;"
+    "            border-radius: 5px;"
+    "            cursor: not-allowed;"
+    "        }"
+    "        #updateButton.active {"
+    "            background-color: #28a745;"
+    "            color: white;"
+    "            cursor: pointer;"
+    "        }"
+    "        #updateButton:hover.active {"
+    "            background-color: #218838;"
+    "        }"
+    "        #updateButton.updating {"
+    "            background-color: #f1c232 !important;"
+    "            color: white !important;"
+    "            cursor: not-allowed;"
+    "        }"
+    "        .version {"
+    "            margin: 20px;"
+    "            font-size: 16px;"
+    "            color: #bbb;"
+    "        }"
+    "    </style>"
     "</head>"
     "<body>"
     "<div class=\"container\">"
-    "  <h1>AMS Plus OTA</h1>"
-    "  <p>Current firmware version："FIRMWARE_VERSION"</p>"
-    "  <form method=\"POST\" action=\"/upload\" enctype=\"multipart/form-data\">"
-    "    <label for=\"file\">Select Firmware File</label>"
-    "    <input type=\"file\" name=\"file\" id=\"file\">"
-    "    <input type=\"submit\" value=\"Upload and Update\" />"
-    "  </form>"
-    "  <hr />"
+    "    <h2>Upload Firmware</h2>"
+    "    <div class=\"version\">Firmware Version: <span id=\"versionDisplay\">"FIRMWARE_VERSION"</span></div>"
+    "    <input type=\"file\" id=\"fileInput\" accept=\".bin\" onchange=\"checkFileSelection()\">"
+    "    <br><br>"
+    "    <button id=\"updateButton\" onclick=\"uploadFirmware()\" disabled>Upload</button>"
     "</div>"
+    "<script>"
+    "    function checkFileSelection() {"
+    "        const fileInput = document.getElementById(\"fileInput\");"
+    "        const updateButton = document.getElementById(\"updateButton\");"
+    "        if (fileInput.files.length > 0 && fileInput.files[0].name.endsWith('.bin')) {"
+    "            updateButton.classList.add(\"active\");"
+    "            updateButton.disabled = false;"
+    "        } else {"
+    "            updateButton.classList.remove(\"active\");"
+    "            updateButton.disabled = true;"
+    "        }"
+    "    }"
+    "    function uploadFirmware() {"
+    "        const fileInput = document.getElementById(\"fileInput\");"
+    "        const updateButton = document.getElementById(\"updateButton\");"
+    "        const file = fileInput.files[0];"
+    "        if (file && file.name.endsWith(\".bin\")) {"
+    "            updateButton.textContent = 'Updating...';"
+    "            updateButton.classList.add('updating');"
+    "            updateButton.disabled = true;"
+    "            const formData = new FormData();"
+    "            formData.append(\"firmware\", file);"
+    "            fetch(\"/upload\", {"
+    "                method: \"POST\","
+    "                body: formData,"
+    "            })"
+    "            .then(response => response.json())"
+    "            .then(data => {"
+    "                if (data.success) {"
+    "                    alert(\"Firmware uploaded successfully!\");"
+    "                } else {"
+    "                    alert(\"Error uploading firmware.\");"
+    "                }"
+    "                updateButton.textContent = 'Upload';"
+    "                updateButton.classList.remove('updating');"
+    "                updateButton.disabled = false;"
+    "            })"
+    "            .catch(error => {"
+    "                console.error(\"Error:\", error);"
+    "                alert(\"Failed to upload firmware.\");"
+    "                updateButton.textContent = 'Upload';"
+    "                updateButton.classList.remove('updating');"
+    "                updateButton.disabled = false;"
+    "            });"
+    "        } else {"
+    "            alert(\"Please select a valid .bin file.\");"
+    "        }"
+    "    }"
+    "    function displayVersion() {"
+    "        const version = \""FIRMWARE_VERSION"\";"
+    "        document.getElementById(\"versionDisplay\").textContent = version;"
+    "    }"
+    "    window.onload = displayVersion;"
+    "</script>"
     "</body>"
     "</html>";
+
+
+// 主页：展示固件版本信息以及一个上传固件的表单（使用深色主题 + 弹性布局）
+static esp_err_t ota_get_handler(httpd_req_t *req)
+{
     httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, resp_buf, strlen(resp_buf));
+    httpd_resp_send(req, html_template, strlen(html_template));
     return ESP_OK;
 }
 
@@ -838,7 +889,8 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
             // 出错或断开
             ESP_LOGE(TAG, "httpd_req_recv failed: %d", recv_len);
             esp_ota_end(ota_handle);
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Receive error");
+            //httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Receive error");
+            httpd_resp_send(req, "{\"success\":false}", HTTPD_RESP_USE_STRLEN);
             return ESP_FAIL;
         } else if (recv_len == 0) {
             // 连接关闭 or 数据结束
@@ -876,7 +928,8 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
                         if (r != ESP_OK) {
                             ESP_LOGE(TAG, "OTA write error in data section");
                             esp_ota_end(ota_handle);
-                            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA write error");
+                            //httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA write error");
+                            httpd_resp_send(req, "{\"success\":false}", HTTPD_RESP_USE_STRLEN);
                             return ESP_FAIL;
                         }
                     }
@@ -906,7 +959,8 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
                         if (r != ESP_OK) {
                             ESP_LOGE(TAG, "OTA write error in partial data");
                             esp_ota_end(ota_handle);
-                            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA write error");
+                            //httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA write error");
+                            httpd_resp_send(req, "{\"success\":false}", HTTPD_RESP_USE_STRLEN);
                             return ESP_FAIL;
                         }
                         // 把剩余数据往前挪
@@ -982,7 +1036,8 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
             if (r != ESP_OK) {
                 ESP_LOGE(TAG, "OTA write error at finalize");
                 esp_ota_end(ota_handle);
-                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA write error");
+                //httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA write error");
+                httpd_resp_send(req, "{\"success\":false}", HTTPD_RESP_USE_STRLEN);
                 return ESP_FAIL;
             }
         }
@@ -991,14 +1046,13 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
     }
 
     // 返回响应
-    httpd_resp_sendstr(req, "OTA update successful! Rebooting...");
-
+    //httpd_resp_sendstr(req, "OTA update successful! Rebooting...");
+    httpd_resp_send(req, "{\"success\":true}", HTTPD_RESP_USE_STRLEN);
     // OTA finalize
     if (finalize_ota(ota_handle, partition) != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA finalize failed");
         return ESP_FAIL;
     }
-
 
     return ESP_OK;
 }

@@ -151,6 +151,10 @@ void parse_ntag(ndef_record **records,int scanner_id){
                 if(sysstate == kSYS_RUNNING){
                     ESP_LOGI(TAG,"Payload JSON:%s",jsonbuff);
                     mqtt_send_filament_setting(jsonbuff);
+                    filament_msg_t filament_msg;
+                    filament_msg.event_id = MQTT_USER_EVENT;
+                    filament_msg.msg_id = 0;
+                    xQueueSend(xqueue_ams_msg,&filament_msg,(TickType_t)10);
                 }
             }
             free(command);
@@ -302,12 +306,15 @@ void app_main(void) {
                     lv_label_set_text(filament_textlist[filament_msg.amd_id], filament_msg.filament_type);
                     lv_obj_set_style_bg_color(filament_boxlist[filament_msg.amd_id], lv_color_hex(filament_msg.color>>8), LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_color(filament_boxlist[filament_msg.amd_id], lv_color_hex(filament_msg.color>>8), LV_PART_INDICATOR | LV_STATE_DEFAULT);
-                    flush_ams_cnt = (is_flushing_filament) ? 19 : 20;
+                    //flush_ams_cnt = (is_flushing_filament) ? 19 : 20;
                 }
                 break;
             case MQTT_EVENT_DISCONNECTED:
                 lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_21,true);
                 sysstate = kSYS_CONNECT_MQTT;
+                break;
+            case MQTT_USER_EVENT:
+                flush_ams_cnt = (is_flushing_filament) ? 19 : 20;
                 break;
             default:
                 break;
