@@ -6,6 +6,7 @@
 typedef struct filament_msg{
     int event_id;
     int msg_id;
+    int ams_id;
     int amd_id;
     char filament_type[32];
     uint32_t color;

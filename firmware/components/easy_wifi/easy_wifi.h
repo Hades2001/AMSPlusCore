@@ -44,6 +44,7 @@ typedef struct http_config{
     char printer_ip[32];
     char printer_password[32];
     char printer_device_id[32];
+    char ams_id[32];
 }http_config_t;
 
 void wifi_init_sta(char* wifi_ssid,char* wifi_pwd);

@@ -20,6 +20,7 @@ static const char *TAG = "AMS_MQTTS";
 
 extern const uint8_t mqtt_eclipseprojects_io_pem_start[]   asm("_binary_ca_certificate_pem_start");
 extern const uint8_t mqtt_eclipseprojects_io_pem_end[]   asm("_binary_ca_certificate_pem_end");
+extern int _g_ams_id;
 
 char report_topic[64] = {0};
 char request_topic[64] = {0};
@@ -29,7 +30,7 @@ QueueHandle_t xqueue_ams_msg;
 esp_mqtt_client_handle_t client;
 
 
-static void resolution_report(char *json_str,filament_msg_t *filament_msg)
+static void resolution_report(char *json_str,filament_msg_t *filament_msg, int ams_id)
 {
 
     filament_msg->amd_id = -1;
@@ -68,6 +69,14 @@ static void resolution_report(char *json_str,filament_msg_t *filament_msg)
     // 遍历 "ams" 数组
     cJSON *ams_item = NULL;
     cJSON_ArrayForEach(ams_item, ams_array) {
+        
+        cJSON *j_ams_id = cJSON_GetObjectItem(ams_item, "id");
+        const char *ams_id_str = cJSON_IsString(j_ams_id) ? j_ams_id->valuestring : "N/A";
+        filament_msg->ams_id = atoi(ams_id_str);
+        if(filament_msg->ams_id != ams_id){
+            ESP_LOGI(TAG,"Is ams %d,not this one,find next!",filament_msg->ams_id);
+            continue;
+        }
         // 获取 "tray" 数组
         cJSON *tray_array = cJSON_GetObjectItem(ams_item, "tray");
         if (!cJSON_IsArray(tray_array)) {
@@ -75,7 +84,6 @@ static void resolution_report(char *json_str,filament_msg_t *filament_msg)
             //printf("Failed to get 'tray' array\n");
             continue;
         }
-
         // 遍历 "tray" 数组
         cJSON *tray_item = NULL;
         cJSON_ArrayForEach(tray_item, tray_array) {
@@ -160,7 +168,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         //printf("TOPIC=%.*s topic_len = %d\r\n", event->topic_len, event->topic, event->total_data_len);
         ESP_LOGD(TAG,"topic_len = %d,DATA=%.*s\r\n",event->total_data_len,event->data_len, event->data);
         //printf("DATA=%.*s\r\n", event->data_len, event->data);
-        resolution_report(event->data,&filament_msg);
+        resolution_report(event->data,&filament_msg,_g_ams_id);
         
         break;
     case MQTT_EVENT_ERROR:

@@ -40,6 +40,7 @@ enum{
 
 int sysstate = kSYS_IDLE;
 int sysflag = 0;
+int _g_ams_id = 0;
 
 void reconfigAMSPlus(){
     http_config_t device_config;
@@ -101,7 +102,8 @@ void connect_to_wifi(){
         }
     }
     else {
-        sprintf(formatbuff,"ssid:%s",device_config.ssid);
+        _g_ams_id = atoi(device_config.ams_id);
+        sprintf(formatbuff,"ssid:%s,ams %d",device_config.ssid,_g_ams_id);
         lv_label_set_text(ams_ui.screen_21_lab_SSID, formatbuff);
         wifi_init_sta(device_config.ssid,device_config.password);
         sysstate = kSYS_CONNECT_WFIF;
@@ -134,7 +136,7 @@ void connect_to_wifi(){
     }
 }
 
-void parse_ntag(ndef_record **records,int scanner_id){
+void parse_ntag(ndef_record **records,int scanner_id,int amsid){
     ndef_record *current = *records;
     while (current) {
         char *command = parse_command((const char*)current->payload,(size_t)current->payload_length);
@@ -147,7 +149,7 @@ void parse_ntag(ndef_record **records,int scanner_id){
                 filament_info info;
                 parse_payload((const char*)current->payload,(size_t)current->payload_length,&info);
                 char jsonbuff[256];
-                filament_setting_payload(jsonbuff,sizeof(jsonbuff),&info,scanner_id,0);
+                filament_setting_payload(jsonbuff,sizeof(jsonbuff),&info,scanner_id,amsid);
                 if(sysstate == kSYS_RUNNING){
                     ESP_LOGI(TAG,"Payload JSON:%s",jsonbuff);
                     mqtt_send_filament_setting(jsonbuff);
@@ -181,7 +183,7 @@ static void on_picc_state_changed(void *arg, esp_event_base_t base, int32_t even
         ndef_record *records = NULL;
         ntag_read_ndef(scanner, picc, &dataptr, &records);
         if(records != NULL){
-            parse_ntag(&records,scanner_no);
+            parse_ntag(&records,scanner_no,_g_ams_id);
             free_ndef_records(records);
         }
         if(dataptr != NULL ){

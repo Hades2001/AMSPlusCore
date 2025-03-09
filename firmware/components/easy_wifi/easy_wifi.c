@@ -160,6 +160,15 @@ esp_err_t load_config_from_nvs(http_config_t *config)
         return err;
     }
 
+    // 6) 读取 ams_id
+    length = sizeof(config->ams_id);
+    err = nvs_get_str(handle, "p_ams_id", config->ams_id, &length);
+    if (err != ESP_OK) {
+        ESP_LOGE("NVS", "Failed to get ams_id, err = %s", esp_err_to_name(err));
+        nvs_close(handle);
+        return err;
+    }
+
     // 关闭
     nvs_close(handle);
 
@@ -226,6 +235,13 @@ esp_err_t save_config_to_nvs(const http_config_t *config)
         return err;
     }
 
+    err = nvs_set_str(handle, "p_ams_id", config->ams_id);
+    if (err != ESP_OK) {
+        ESP_LOGE("NVS", "Failed to set ams_id, err = %s", esp_err_to_name(err));
+        nvs_close(handle);
+        return err;
+    }
+
     // 提交写入操作
     err = nvs_commit(handle);
     if (err != ESP_OK) {
@@ -246,7 +262,7 @@ esp_err_t save_config_to_nvs(const http_config_t *config)
 #define WIFI_AP_MAX_STA_CONN       (4)
 QueueHandle_t xqueue_http_msg; 
 
-static void wifi_event_handler(void* arg, esp_event_base_t event_base,int32_t event_id, void* event_data);
+//static void wifi_event_handler(void* arg, esp_event_base_t event_base,int32_t event_id, void* event_data);
 
 void wifi_init_softap(void *event_handler_arg)
 {
@@ -383,6 +399,21 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 "        .button:hover {"
 "            background-color: #005dbf;"
 "        }"
+"        .select {"
+"            padding: 10px;"
+"            font-size: 16px;"
+"            border-radius: 4px;"
+"            border: 1px solid #333333;"
+"            background-color: #2a2a2a;"
+"            color: #ffffff;"
+"            height: 40px;"
+"            -webkit-appearance: none;"
+"            -moz-appearance: none;"
+"            appearance: none;"
+"        }"
+"        .select:focus {"
+"            border-color: #007bff;"
+"        }"
 "    </style>"
 "</head>"
 "<body>"
@@ -410,6 +441,15 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 "                    <label class=\"label\" for=\"printer_device_id\">Bambu 3D printing DeviceID</label>"
 "                    <input class=\"input\" type=\"text\" id=\"printer_device_id\" name=\"printer_device_id\">"
 "                </div>"
+"                <div class=\"form-group\">"
+"                <label class=\"label\" for=\"ams_id\">Bambu AMS ID</label>"
+"                <select class=\"input select\" id=\"ams_id\" name=\"ams_id\">"
+"                    <option value=\"0\">0</option>"
+"                    <option value=\"1\">1</option>"
+"                    <option value=\"2\">2</option>"
+"                    <option value=\"3\">3</option>"
+"                </select>"
+"                </div>"
 "                <button class=\"button\" type=\"submit\">Save</button>"
 "            </form>"
 "        </div>"
@@ -422,8 +462,9 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 "        var printerIp = document.getElementById('printer_ip').value.trim();"
 "        var printerPwd = document.getElementById('printer_password').value.trim();"
 "        var printerId = document.getElementById('printer_device_id').value.trim();"
+"        var amsId = document.getElementById('ams_id').value;"
 
-"        if (!ssid || !password || !printerIp || !printerPwd || !printerId) {"
+"        if (!ssid || !password || !printerIp || !printerPwd || !printerId || amsId === "") {"
 "            alert('All fields are required. Please fill them before submitting.');"
 "            return false;"
 "        }"
@@ -499,7 +540,7 @@ static esp_err_t config_post_handler(httpd_req_t *req)
     char printer_ip[32]        = {0};
     char printer_password[32]  = {0};
     char printer_device_id[32] = {0};
-
+    char ams_id[32]            = {0};
     // 依次解析表单字段 (ssid, password, printer_ip, printer_password, printer_device_id)
     // 简易解析方式，可以用 strtok 或者更好的 HTTP 解析库，示例仅供参考
 
@@ -568,11 +609,24 @@ static esp_err_t config_post_handler(httpd_req_t *req)
         }
     }
 
+    // 5) 解析 ams_id
+    p = strstr(buf, "ams_id=");
+    if (p) {
+        p += strlen("ams_id=");
+        char *end = strchr(p, '&');
+        if (end) {
+            memcpy(ams_id, p, end - p);
+            ams_id[end - p] = '\0';
+        } else {
+            strcpy(ams_id, p);
+        }
+    }
+
     // =============== 后端非空校验 ===============
     // 防止有人绕过前端 JS 校验，直接发 POST
     if (strlen(ssid) == 0 || strlen(password) == 0 ||
         strlen(printer_ip) == 0 || strlen(printer_password) == 0 ||
-        strlen(printer_device_id) == 0) {
+        strlen(printer_device_id) == 0 || strlen(ams_id) == 0) {
         ESP_LOGE("WEB_SERVER", "Some fields are empty, reject config.");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Error: All fields required!");
         return ESP_FAIL;
@@ -584,7 +638,7 @@ static esp_err_t config_post_handler(httpd_req_t *req)
     ESP_LOGI(TAG, "Printer IP: %s", printer_ip);
     ESP_LOGI(TAG, "Printer PWD: %s", printer_password);
     ESP_LOGI(TAG, "Printer DeviceID: %s", printer_device_id);
-
+    ESP_LOGI(TAG, "AMS ID: %s", ams_id);
     // =============== 一切合法后，存入结构体并发送队列 ===============
     http_config_t config_data = {0};
     strlcpy(config_data.ssid, ssid, sizeof(ssid) - 1);
@@ -592,6 +646,7 @@ static esp_err_t config_post_handler(httpd_req_t *req)
     strlcpy(config_data.printer_ip, printer_ip, sizeof(printer_ip) - 1);
     strlcpy(config_data.printer_password, printer_password, sizeof(printer_password) - 1);
     strlcpy(config_data.printer_device_id, printer_device_id, sizeof(printer_device_id) - 1);
+    strlcpy(config_data.ams_id, ams_id, sizeof(ams_id) - 1);
 
     // 将结构体发送到队列
     if (xQueueSend(xqueue_http_msg, &config_data, 0) != pdTRUE) {
