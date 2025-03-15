@@ -32,7 +32,6 @@ esp_mqtt_client_handle_t client;
 
 static void resolution_report(char *json_str,filament_msg_t *filament_msg, int ams_id)
 {
-
     filament_msg->amd_id = -1;
 
     // 解析 JSON 字符串
@@ -94,7 +93,7 @@ static void resolution_report(char *json_str,filament_msg_t *filament_msg, int a
             // 提取 "tray_color"
             cJSON *tray_color = cJSON_GetObjectItem(tray_item, "tray_color");
             const char *tray_color_str = cJSON_IsString(tray_color) ? tray_color->valuestring : "N/A";
-
+ 
             // 提取 "tray_type"
             cJSON *tray_type = cJSON_GetObjectItem(tray_item, "tray_type");
             const char *tray_type_str = cJSON_IsString(tray_type) ? tray_type->valuestring : "N/A";
