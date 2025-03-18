@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdint.h>
 #include "esp_log.h"
+#include "esp_random.h"
 #include "cJSON.h"
 
 #include "ams_ntag.h"
@@ -141,6 +142,15 @@ int parse_payload(const char *json_string, size_t length, filament_info *info) {
         info->surface[0] = surface->valuestring[0];
     }
 
+    // 解析 cali_idx
+    cJSON *cali_idx = cJSON_GetObjectItemCaseSensitive(payload, "cali_idx");
+    if (cJSON_IsString(cali_idx) && (cali_idx->valuestring != NULL)) {
+        info->cali_idx = atoi(cali_idx->valuestring);
+    }
+    else{
+        info->cali_idx == -1;
+    }
+
     cJSON_Delete(json);
     return 0;
 }
@@ -152,8 +162,12 @@ int filament_setting_payload(char *json_string, size_t length, filament_info *in
     // Create the "print" object
     cJSON *print = cJSON_CreateObject();
 
+    uint16_t seq_id = (uint16_t)(esp_random() & 0xFFFF);
+    char seq_str[6] = {0};
+    snprintf(seq_str, sizeof(seq_str), "%u", seq_id);
+
     // Add key-value pairs to the "print" object
-    cJSON_AddStringToObject(print, "sequence_id", "0");
+    cJSON_AddStringToObject(print, "sequence_id", seq_str);
     cJSON_AddStringToObject(print, "command", "ams_filament_setting");
     cJSON_AddNumberToObject(print, "ams_id", ams_id);
     int tray_id = (info->surface[0] == 'A') ? (( scanner_id * 2 ) - 1) : (( scanner_id * 2 ) - 2);
@@ -179,5 +193,42 @@ int filament_setting_payload(char *json_string, size_t length, filament_info *in
     cJSON_Delete(print);
     free(json_str);
     
-    return 0;
+    return seq_id;
+}
+
+int cali_idx_setting_payload(char *json_string, size_t length, filament_info *info, int scanner_id, int ams_id){
+
+    cJSON *root = cJSON_CreateObject();
+    // Create the "print" object
+    cJSON *print = cJSON_CreateObject();
+
+    uint16_t seq_id = (uint16_t)(esp_random() & 0xFFFF);
+    char seq_str[6] = {0};
+    snprintf(seq_str, sizeof(seq_str), "%u", seq_id);
+    // Add key-value pairs to the "print" object
+    cJSON_AddStringToObject(print, "sequence_id", seq_str);
+    cJSON_AddStringToObject(print, "command", "extrusion_cali_sel");
+    cJSON_AddNumberToObject(print, "ams_id", ams_id);
+    int tray_id = (info->surface[0] == 'A') ? (( scanner_id * 2 ) - 1) : (( scanner_id * 2 ) - 2);
+    cJSON_AddNumberToObject(print, "tray_id", tray_id);
+    
+    char cali_idx_str[8] = {0};
+    itoa(info->cali_idx,cali_idx_str,10);
+    cJSON_AddStringToObject(print, "filament_id", "GFL99");
+    //cJSON_AddStringToObject(print, "cali_idx", cali_idx_str);
+    cJSON_AddNumberToObject(print, "cali_idx", info->cali_idx);
+    cJSON_AddStringToObject(print, "nozzle_diameter", "0.4");
+    //cJSON_AddStringToObject(print, "tray_type", info->type);
+
+    // Add the "print" object to the root
+    cJSON_AddItemToObject(root, "print", print);
+
+    // Convert JSON structure to string
+    char *json_str = cJSON_PrintUnformatted(root);
+    strlcpy(json_string,json_str,length);
+
+    cJSON_Delete(print);
+    free(json_str);
+    
+    return seq_id;
 }

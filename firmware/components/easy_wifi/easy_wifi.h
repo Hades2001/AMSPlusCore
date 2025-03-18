@@ -38,7 +38,14 @@
 #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WAPI_PSK
 #endif
 
+typedef enum httpmsg_type{
+    kHTTPMSG_DEVICE_SET = 0,
+    kHTTPMSG_CALI_GET,
+    kHTTPMSG_MAX,
+}httpmsg_type_t;
+
 typedef struct http_config{
+    int  type;
     char ssid[32];
     char password[64];
     char printer_ip[32];
@@ -52,9 +59,11 @@ esp_err_t save_config_to_nvs(const http_config_t *config);
 esp_err_t load_config_from_nvs(http_config_t *config);
 void wifi_init_softap(void *event_handler_arg);
 void generate_softap_ssid(char* buff, size_t size);
-httpd_handle_t start_webserver(void);
-httpd_handle_t start_ota_webserver(void);
+httpd_handle_t start_config_webserver(void);
+httpd_handle_t start_gen_webserver(void);
 
 extern EventGroupHandle_t s_wifi_event_group;
 extern QueueHandle_t xqueue_http_msg;
 extern QueueHandle_t xqueue_ota_msg;
+extern QueueHandle_t xqueue_get_calilist_msg;
+extern QueueHandle_t xqueue_calilist_json_msg; 

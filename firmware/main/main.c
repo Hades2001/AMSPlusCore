@@ -17,8 +17,6 @@
 #define TAG "QMSD-MAIN"
 
 lv_ui ams_ui;
-extern QueueHandle_t xqueue_ams_msg; 
-
 
 enum{
     kSYS_IDLE= 0,
@@ -29,6 +27,7 @@ enum{
     kSYS_CONFIG,
     kSYS_REBOOTING,
     kSYS_ERROR,
+    kSYS_OTA,
     kSYS_DEFAULE,
 };
 
@@ -84,7 +83,7 @@ void connect_to_wifi(){
         sprintf(formatbuff,"Wi-Fi SSID:%s",ssid);
         lv_label_set_text(ams_ui.screen_00_lab_desctext, formatbuff);
         lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_00,true);
-        httpd_handle_t server = start_webserver();
+        httpd_handle_t server = start_config_webserver();
         if (server) {
             ESP_LOGI(TAG, "HTTP server started successfully");
         } else {
@@ -93,6 +92,7 @@ void connect_to_wifi(){
         sysstate = kSYS_CONFIG;
         while(1){
             if(xQueueReceive(xqueue_http_msg,&device_config,500) == pdTRUE){
+                if(device_config.type != kHTTPMSG_DEVICE_SET )continue;
                 save_config_to_nvs(&device_config);
                 ESP_LOGI(TAG,"");
                 vTaskDelay(2000);
@@ -129,7 +129,7 @@ void connect_to_wifi(){
             reconfigAMSPlus();
         }
         connect_mqtt(&device_config);
-        start_ota_webserver();
+        
         lv_label_set_text(ams_ui.screen_21_lab_SSID, "Connecting to print mqtt");
         sysstate = kSYS_CONNECT_MQTT;
         
@@ -148,11 +148,16 @@ void parse_ntag(ndef_record **records,int scanner_id,int amsid){
             else if(strcmp(command, "filament") == 0){
                 filament_info info;
                 parse_payload((const char*)current->payload,(size_t)current->payload_length,&info);
-                char jsonbuff[256];
-                filament_setting_payload(jsonbuff,sizeof(jsonbuff),&info,scanner_id,amsid);
+                char jsonbuff[256] = {0};
                 if(sysstate == kSYS_RUNNING){
+                    int id = filament_setting_payload(jsonbuff,sizeof(jsonbuff),&info,scanner_id,amsid);
                     ESP_LOGI(TAG,"Payload JSON:%s",jsonbuff);
-                    mqtt_send_filament_setting(jsonbuff);
+                    enqueue_print_message(jsonbuff,strlen(jsonbuff),id);
+                    if(info.cali_idx >= 0 ){
+                        id = cali_idx_setting_payload(jsonbuff,sizeof(jsonbuff),&info,scanner_id,amsid);
+                        ESP_LOGI(TAG,"Payload JSON:%s",jsonbuff);
+                        enqueue_print_message(jsonbuff,strlen(jsonbuff),id);
+                    }
                     filament_msg_t filament_msg;
                     filament_msg.event_id = MQTT_USER_EVENT;
                     filament_msg.msg_id = 0;
@@ -264,6 +269,7 @@ void app_main(void) {
             ESP_LOGE(TAG,"Re - initialize ATH10");
             vTaskDelay(1000);
         }
+        isError = false;
     } while (isError);
 
     lv_obj_set_style_text_color(ams_ui.screen_21_lab_SSID,lv_color_make(0xff, 0xff, 0xff),LV_PART_MAIN|LV_STATE_DEFAULT);
@@ -291,7 +297,8 @@ void app_main(void) {
     int flush_ams_cnt = 19;
     int ota_s_ota_progress = -1;
     bool is_flushing_filament = true;
-
+    char *extrusion_cali_json;
+    httpmsg_type_t httpmsg;
     filament_msg_t filament_msg;
 
     while(1){
@@ -300,6 +307,8 @@ void app_main(void) {
             {
             case MQTT_EVENT_CONNECTED:
                 lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_31,true);
+                //mqtt_send_filament_setting();
+                start_gen_webserver();
                 sysstate = kSYS_RUNNING;
                 break;
             case MQTT_EVENT_DATA:
@@ -347,11 +356,19 @@ void app_main(void) {
                 flush_ams_cnt --;
             }
 
-            if(xQueueReceive(xqueue_ota_msg,&ota_s_ota_progress,10) == pdTRUE){
+            if(xQueueReceive(xqueue_ota_msg,&ota_s_ota_progress,5) == pdTRUE){
                 if(ota_s_ota_progress >= 0){
                     lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_41,true);
                     lv_bar_set_value(ams_ui.screen_41_bar_ota, ota_s_ota_progress, LV_ANIM_OFF);
                 }
+            }
+            if(xQueueReceive(xqueue_get_calilist_msg,&httpmsg,5) == pdTRUE){
+                if(httpmsg == kHTTPMSG_CALI_GET ){
+                    mqtt_send_get_cali_list();
+                }
+            }
+            if(xQueueReceive(xqueue_cali_get_msg,&extrusion_cali_json,5) == pdTRUE){
+                xQueueSend(xqueue_calilist_json_msg,&extrusion_cali_json,10);
             }
         }
 
