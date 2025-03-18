@@ -702,7 +702,7 @@ httpd_handle_t start_config_webserver(void)
 #include "esp_ota_ops.h"
 #include "esp_flash_partitions.h"
 
-#define FIRMWARE_VERSION "1.0.5"
+#define FIRMWARE_VERSION "B1.0.7"
 #define OTA_WEB_PORT    80
 
 static int s_ota_progress = -1;
@@ -1112,57 +1112,6 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
 
     return ESP_OK;
 }
-
-// 这里可换成你实际的 JSON 数据来源，比如从其他设备或网络获取
-static const char *calilist_json_data =
-    "{\n"
-    "    \"print\": {\n"
-    "        \"sequence_id\": \"1\",\n"
-    "        \"command\": \"extrusion_cali_get\",\n"
-    "        \"filament_id\": \"GFL99\",\n"
-    "        \"nozzle_diameter\": \"0.4\",\n"
-    "        \"filaments\": [\n"
-    "            {\n"
-    "                \"setting_id\": \"GFSL99\",\n"
-    "                \"filament_id\": \"GFL99\",\n"
-    "                \"name\": \"aurora PLA Silk Double\",\n"
-    "                \"k_value\": \"0.02100\",\n"
-    "                \"n_coef\": \"1.000\",\n"
-    "                \"cali_idx\": 181,\n"
-    "                \"is_history_setting\": true\n"
-    "            },\n"
-    "            {\n"
-    "                \"cali_idx\": 710,\n"
-    "                \"setting_id\": \"GFSL99\",\n"
-    "                \"filament_id\": \"GFL99\",\n"
-    "                \"name\": \"SUNLU PLA Wood\",\n"
-    "                \"k_value\": \"0.02400\",\n"
-    "                \"n_coef\": \"1.00000\",\n"
-    "                \"is_history_setting\": false\n"
-    "            },\n"
-    "            {\n"
-    "                \"setting_id\": \"GFSL99\",\n"
-    "                \"filament_id\": \"GFL99\",\n"
-    "                \"name\": \"Aurora PLA Temperature\",\n"
-    "                \"k_value\": \"0.02000\",\n"
-    "                \"n_coef\": \"1.000\",\n"
-    "                \"cali_idx\": 154,\n"
-    "                \"is_history_setting\": false\n"
-    "            },\n"
-    "            {\n"
-    "                \"setting_id\": \"GFSL99\",\n"
-    "                \"filament_id\": \"GFL99\",\n"
-    "                \"name\": \"tttt1\",\n"
-    "                \"k_value\": \"0.10000\",\n"
-    "                \"n_coef\": \"1.000\",\n"
-    "                \"is_history_setting\": false,\n"
-    "                \"cali_idx\": 464\n"
-    "            }\n"
-    "        ],\n"
-    "        \"reason\": \"success\",\n"
-    "        \"result\": \"success\"\n"
-    "    }\n"
-    "}";
 
 QueueHandle_t xqueue_get_calilist_msg;
 QueueHandle_t xqueue_calilist_json_msg; 

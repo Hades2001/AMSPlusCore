@@ -148,7 +148,7 @@ int parse_payload(const char *json_string, size_t length, filament_info *info) {
         info->cali_idx = atoi(cali_idx->valuestring);
     }
     else{
-        info->cali_idx == -1;
+        info->cali_idx = -1;
     }
 
     cJSON_Delete(json);
