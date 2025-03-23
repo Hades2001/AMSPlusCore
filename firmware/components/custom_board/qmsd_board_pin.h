@@ -13,8 +13,10 @@
 #define LCD_CS_PIN          (17)
 #define LCD_CLK_PIN         (18)
 #define LCD_MOSI_PIN        (19)
+//#define LCD_MOSI_PIN        (10)
 #define LCD_MISO_PIN        (-1)
 #define LCD_DC_PIN          (20)
+//#define LCD_DC_PIN          (11)
 #define LCD_TE_PIN          (-1)
 
 #define RC522_SPI_MISO      (7)

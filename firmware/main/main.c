@@ -128,6 +128,9 @@ void connect_to_wifi(){
             lv_label_set_text(ams_ui.screen_21_lab_SSID, "Failed to connect, Reconfigure device");
             reconfigAMSPlus();
         }
+        lv_label_set_text(ams_ui.screen_21_lab_SSID, "Sync sntp time");
+        initialize_sntp();
+        obtain_time();
         connect_mqtt(&device_config);
         
         lv_label_set_text(ams_ui.screen_21_lab_SSID, "Connecting to print mqtt");
@@ -269,7 +272,6 @@ void app_main(void) {
             ESP_LOGE(TAG,"Re - initialize ATH10");
             vTaskDelay(1000);
         }
-        isError = false;
     } while (isError);
 
     lv_obj_set_style_text_color(ams_ui.screen_21_lab_SSID,lv_color_make(0xff, 0xff, 0xff),LV_PART_MAIN|LV_STATE_DEFAULT);
@@ -340,7 +342,7 @@ void app_main(void) {
                 memset(tempstr,0,sizeof(tempstr));
                 sprintf(tempstr,"%d%%",((uint16_t)(hum*100))%100);
                 lv_label_set_text(ams_ui.screen_31_lab_hum, tempstr);
-                lv_bar_set_value(ams_ui.screen_31_bar_hum, ((uint16_t)(hum*100))%100, LV_ANIM_OFF);
+                //lv_bar_set_value(ams_ui.screen_31_bar_hum, ((uint16_t)(hum*100))%100, LV_ANIM_OFF);
             }
 
             if( flush_ams_cnt == 0 ){

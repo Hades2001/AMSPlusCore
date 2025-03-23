@@ -8,9 +8,48 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 #include "easy_wifi.h"
+#include "esp_sntp.h"
+
+#define NTP_SERVER "pool.ntp.org"
+#define GMT_OFFSET_SEC  3600    // 设置时区偏移，例如中国时区为+1小时，即3600秒
+#define DAYLIGHT_OFFSET_SEC  0   // 是否开启夏令时，如果开启设置为3600秒
 
 #define TAG "E-WIFI"
 
+static void time_sync_notification_cb(struct timeval *tv)
+{
+    ESP_LOGI(TAG, "system date sync！");
+}
+
+void initialize_sntp(void)
+{
+    ESP_LOGI("NTP", "Initializing SNTP...");
+    
+    // 配置 NTP 服务器
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_set_time_sync_notification_cb(time_sync_notification_cb);
+    esp_sntp_setservername(0, "time.windows.com");
+    esp_sntp_setservername(1, "time.google.com");
+    esp_sntp_setservername(2, "time.apple.com");
+    esp_sntp_setservername(3, "pool.ntp.org");
+    esp_sntp_init();
+    
+    while (esp_sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) {
+        ESP_LOGI(TAG, "waiting SNTP sync...");
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}
+
+void obtain_time(void)
+{
+    time_t now = 0;
+    struct tm timeinfo = { 0 };
+    time(&now);
+    localtime_r(&now, &timeinfo);
+
+    // 这里可以输出当前时间，检查是否获取成功
+    ESP_LOGI(TAG, "Date now: %s", asctime(&timeinfo));
+}
 
 static int s_retry_num = 0;
 EventGroupHandle_t s_wifi_event_group;

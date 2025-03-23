@@ -29,14 +29,6 @@ char request_topic[64] = {0};
 char *extrusion_cali_list_ptr = NULL;
 
 const char push_all_payload[] = "{\"pushing\": {\"sequence_id\": \"0\",\"command\": \"pushall\",\"version\": 1,\"push_target\": 1}}";
-const char cali_get_payload[] =        
-"{\"print\": {"
-"    \"sequence_id\":1,"
-"    \"command\": \"extrusion_cali_get\","
-"    \"filament_id\": \"GFL99\","
-"    \"nozzle_diameter\": \"0.4\""
-"}}";
-
 QueueHandle_t xqueue_ams_msg = NULL;
 QueueHandle_t xqueue_cali_get_msg = NULL;
 QueueHandle_t xqueue_send_msg = NULL;
@@ -333,7 +325,7 @@ int mqtt_send_get_cali_list(){
             "{\"print\": {"
             "    \"sequence_id\":\"%d\","
             "    \"command\": \"extrusion_cali_get\","
-            "    \"filament_id\": \"GFL99\","
+            "    \"filament_id\": \"\","
             "    \"nozzle_diameter\": \"0.4\""
             "}}",seq_id);
 

@@ -203,7 +203,7 @@ void setup_scr_screen_31(lv_ui *ui){
 
 	//Write codes screen_31_lab_filament_1
 	ui->screen_31_lab_filament_1 = lv_label_create(ui->screen_5_cont_1);
-	lv_obj_set_pos(ui->screen_31_lab_filament_1, 8, 115);
+	lv_obj_set_pos(ui->screen_31_lab_filament_1, 8, 110);
 	lv_obj_set_size(ui->screen_31_lab_filament_1, 51, 16);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_filament_1, LV_SCROLLBAR_MODE_OFF);
 	lv_label_set_text(ui->screen_31_lab_filament_1, "?");
@@ -233,7 +233,7 @@ void setup_scr_screen_31(lv_ui *ui){
 
 	//Write codes screen_31_lab_filament_2
 	ui->screen_31_lab_filament_2 = lv_label_create(ui->screen_5_cont_1);
-	lv_obj_set_pos(ui->screen_31_lab_filament_2, 66, 115);
+	lv_obj_set_pos(ui->screen_31_lab_filament_2, 66, 110);
 	lv_obj_set_size(ui->screen_31_lab_filament_2, 51, 16);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_filament_2, LV_SCROLLBAR_MODE_OFF);
 	lv_label_set_text(ui->screen_31_lab_filament_2, "PETG");
@@ -263,7 +263,7 @@ void setup_scr_screen_31(lv_ui *ui){
 
 	//Write codes screen_31_lab_filament_3
 	ui->screen_31_lab_filament_3 = lv_label_create(ui->screen_5_cont_1);
-	lv_obj_set_pos(ui->screen_31_lab_filament_3, 124, 115);
+	lv_obj_set_pos(ui->screen_31_lab_filament_3, 124, 110);
 	lv_obj_set_size(ui->screen_31_lab_filament_3, 51, 16);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_filament_3, LV_SCROLLBAR_MODE_OFF);
 	lv_label_set_text(ui->screen_31_lab_filament_3, "PETG");
@@ -294,7 +294,7 @@ void setup_scr_screen_31(lv_ui *ui){
 
 	//Write codes screen_31_lab_filament_4
 	ui->screen_31_lab_filament_4 = lv_label_create(ui->screen_5_cont_1);
-	lv_obj_set_pos(ui->screen_31_lab_filament_4, 182, 115);
+	lv_obj_set_pos(ui->screen_31_lab_filament_4, 182, 110);
 	lv_obj_set_size(ui->screen_31_lab_filament_4, 51, 16);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_filament_4, LV_SCROLLBAR_MODE_OFF);
 	lv_label_set_text(ui->screen_31_lab_filament_4, "PETG");
@@ -479,7 +479,7 @@ void setup_scr_screen_31(lv_ui *ui){
 
 	//Write codes screen_31_lab_hum
 	ui->screen_31_lab_hum = lv_label_create(ui->screen_5_cont_1);
-	lv_obj_set_pos(ui->screen_31_lab_hum, 46, 130);
+	lv_obj_set_pos(ui->screen_31_lab_hum, 50, 130);
 	lv_obj_set_size(ui->screen_31_lab_hum, 140, 70);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_hum, LV_SCROLLBAR_MODE_OFF);
 	lv_label_set_text(ui->screen_31_lab_hum, "88%");
@@ -509,7 +509,7 @@ void setup_scr_screen_31(lv_ui *ui){
 
 	//Write codes screen_31_lab_temp
 	ui->screen_31_lab_temp = lv_label_create(ui->screen_5_cont_1);
-	lv_obj_set_pos(ui->screen_31_lab_temp, 164, 140);
+	lv_obj_set_pos(ui->screen_31_lab_temp, 164, 145);
 	lv_obj_set_size(ui->screen_31_lab_temp, 100, 35);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_temp, LV_SCROLLBAR_MODE_OFF);
 	lv_label_set_text(ui->screen_31_lab_temp, "25°C");
@@ -537,42 +537,71 @@ void setup_scr_screen_31(lv_ui *ui){
 	lv_style_set_pad_bottom(&style_screen_31_lab_temp_main_main_default, 0);
 	lv_obj_add_style(ui->screen_31_lab_temp, &style_screen_31_lab_temp_main_main_default, LV_PART_MAIN|LV_STATE_DEFAULT);
 
-	//Write codes screen_31_bar_hum
-	ui->screen_31_bar_hum = lv_bar_create(ui->screen_5_cont_1);
-	lv_obj_set_pos(ui->screen_31_bar_hum, 165, 183);
-	lv_obj_set_size(ui->screen_31_bar_hum, 70, 12);
-	lv_obj_set_scrollbar_mode(ui->screen_31_bar_hum, LV_SCROLLBAR_MODE_OFF);
+	ui->screen_31_lab_info = lv_label_create(ui->screen_5_cont_1);
+
+	lv_obj_set_pos(ui->screen_31_lab_info, 165, 175);
+	lv_obj_set_size(ui->screen_31_lab_info, 70, 20);
+	lv_obj_set_scrollbar_mode(ui->screen_31_lab_info, LV_SCROLLBAR_MODE_OFF);
+	lv_label_set_text(ui->screen_31_lab_info, "192.168.0.1");
+	lv_label_set_long_mode(ui->screen_31_lab_info, LV_LABEL_LONG_SCROLL);
+
+	//Write style state: LV_STATE_DEFAULT for style_screen_31_lab_info_main_main_default
+	static lv_style_t style_screen_31_lab_info_main_main_default;
+	if (style_screen_31_lab_info_main_main_default.prop_cnt > 1)
+		lv_style_reset(&style_screen_31_lab_info_main_main_default);
+	else
+		lv_style_init(&style_screen_31_lab_info_main_main_default);
+
+	lv_style_set_radius(&style_screen_31_lab_info_main_main_default, 0);
+	lv_style_set_bg_color(&style_screen_31_lab_info_main_main_default, lv_color_make(0x21, 0x95, 0xf6));
+	lv_style_set_bg_grad_color(&style_screen_31_lab_info_main_main_default, lv_color_make(0x21, 0x95, 0xf6));
+	lv_style_set_bg_grad_dir(&style_screen_31_lab_info_main_main_default, LV_GRAD_DIR_NONE);
+	lv_style_set_bg_opa(&style_screen_31_lab_info_main_main_default, 0);
+	lv_style_set_text_color(&style_screen_31_lab_info_main_main_default, lv_color_make(0xff, 0xff, 0xff));
+	lv_style_set_text_font(&style_screen_31_lab_info_main_main_default, &lv_customer_font_Teko_Regular_35);
+	lv_style_set_text_letter_space(&style_screen_31_lab_info_main_main_default, 0);
+	lv_style_set_text_line_space(&style_screen_31_lab_info_main_main_default, 0);
+	lv_style_set_text_align(&style_screen_31_lab_info_main_main_default, LV_TEXT_ALIGN_CENTER);
+	lv_style_set_pad_left(&style_screen_31_lab_info_main_main_default, 0);
+	lv_style_set_pad_right(&style_screen_31_lab_info_main_main_default, 0);
+	lv_style_set_pad_top(&style_screen_31_lab_info_main_main_default, 0);
+	lv_style_set_pad_bottom(&style_screen_31_lab_info_main_main_default, 0);
+	lv_obj_add_style(ui->screen_31_lab_info, &style_screen_31_lab_info_main_main_default, LV_PART_MAIN|LV_STATE_DEFAULT);
+
+	////Write codes screen_31_bar_hum
+	//ui->screen_31_bar_hum = lv_bar_create(ui->screen_5_cont_1);
+	//lv_obj_set_pos(ui->screen_31_bar_hum, 165, 183);
+	//lv_obj_set_size(ui->screen_31_bar_hum, 70, 12);
+	//lv_obj_set_scrollbar_mode(ui->screen_31_bar_hum, LV_SCROLLBAR_MODE_OFF);
 
 	//Write style state: LV_STATE_DEFAULT for style_screen_31_bar_hum_main_main_default
-	static lv_style_t style_screen_31_bar_hum_main_main_default;
-	if (style_screen_31_bar_hum_main_main_default.prop_cnt > 1)
-		lv_style_reset(&style_screen_31_bar_hum_main_main_default);
-	else
-		lv_style_init(&style_screen_31_bar_hum_main_main_default);
-	lv_style_set_radius(&style_screen_31_bar_hum_main_main_default, 5);
-	lv_style_set_bg_color(&style_screen_31_bar_hum_main_main_default, lv_color_make(0xff, 0xff, 0xff));
-	lv_style_set_bg_grad_color(&style_screen_31_bar_hum_main_main_default, lv_color_make(0x21, 0x95, 0xf6));
-	lv_style_set_bg_grad_dir(&style_screen_31_bar_hum_main_main_default, LV_GRAD_DIR_NONE);
-	lv_style_set_bg_opa(&style_screen_31_bar_hum_main_main_default, 255);
-	lv_obj_add_style(ui->screen_31_bar_hum, &style_screen_31_bar_hum_main_main_default, LV_PART_MAIN|LV_STATE_DEFAULT);
-
-	//Write style state: LV_STATE_DEFAULT for style_screen_31_bar_hum_main_indicator_default
-	static lv_style_t style_screen_31_bar_hum_main_indicator_default;
-	if (style_screen_31_bar_hum_main_indicator_default.prop_cnt > 1)
-		lv_style_reset(&style_screen_31_bar_hum_main_indicator_default);
-	else
-		lv_style_init(&style_screen_31_bar_hum_main_indicator_default);
-	lv_style_set_radius(&style_screen_31_bar_hum_main_indicator_default, 5);
-	lv_style_set_bg_color(&style_screen_31_bar_hum_main_indicator_default, lv_color_make(0x00, 0x61, 0xF3));
-	lv_style_set_bg_grad_color(&style_screen_31_bar_hum_main_indicator_default, lv_color_make(0x83, 0xDD, 0xFF));
-	lv_style_set_bg_grad_dir(&style_screen_31_bar_hum_main_indicator_default, LV_GRAD_DIR_NONE);
-	lv_style_set_bg_opa(&style_screen_31_bar_hum_main_indicator_default, 255);
-	lv_obj_add_style(ui->screen_31_bar_hum, &style_screen_31_bar_hum_main_indicator_default, LV_PART_INDICATOR|LV_STATE_DEFAULT);
-	lv_obj_set_style_anim_time(ui->screen_31_bar_hum, 1000, 0);
-	lv_bar_set_mode(ui->screen_31_bar_hum, LV_BAR_MODE_NORMAL);
-	lv_bar_set_value(ui->screen_31_bar_hum, 50, LV_ANIM_OFF);
-// 0061F3
-	lv_bar_set_range(ui->screen_31_bar_hum, -20, 80);
+	//static lv_style_t style_screen_31_bar_hum_main_main_default;
+	//if (style_screen_31_bar_hum_main_main_default.prop_cnt > 1)
+	//	lv_style_reset(&style_screen_31_bar_hum_main_main_default);
+	//else
+	//	lv_style_init(&style_screen_31_bar_hum_main_main_default);
+	//lv_style_set_radius(&style_screen_31_bar_hum_main_main_default, 5);
+	//lv_style_set_bg_color(&style_screen_31_bar_hum_main_main_default, lv_color_make(0xff, 0xff, 0xff));
+	//lv_style_set_bg_grad_color(&style_screen_31_bar_hum_main_main_default, lv_color_make(0x21, 0x95, 0xf6));
+	//lv_style_set_bg_grad_dir(&style_screen_31_bar_hum_main_main_default, LV_GRAD_DIR_NONE);
+	//lv_style_set_bg_opa(&style_screen_31_bar_hum_main_main_default, 255);
+	//lv_obj_add_style(ui->screen_31_bar_hum, &style_screen_31_bar_hum_main_main_default, LV_PART_MAIN|LV_STATE_DEFAULT);
+	////Write style state: LV_STATE_DEFAULT for style_screen_31_bar_hum_main_indicator_default
+	//static lv_style_t style_screen_31_bar_hum_main_indicator_default;
+	//if (style_screen_31_bar_hum_main_indicator_default.prop_cnt > 1)
+	//	lv_style_reset(&style_screen_31_bar_hum_main_indicator_default);
+	//else
+	//	lv_style_init(&style_screen_31_bar_hum_main_indicator_default);
+	//lv_style_set_radius(&style_screen_31_bar_hum_main_indicator_default, 5);
+	//lv_style_set_bg_color(&style_screen_31_bar_hum_main_indicator_default, lv_color_make(0x00, 0x61, 0xF3));
+	//lv_style_set_bg_grad_color(&style_screen_31_bar_hum_main_indicator_default, lv_color_make(0x83, 0xDD, 0xFF));
+	//lv_style_set_bg_grad_dir(&style_screen_31_bar_hum_main_indicator_default, LV_GRAD_DIR_NONE);
+	//lv_style_set_bg_opa(&style_screen_31_bar_hum_main_indicator_default, 255);
+	//lv_obj_add_style(ui->screen_31_bar_hum, &style_screen_31_bar_hum_main_indicator_default, LV_PART_INDICATOR|LV_STATE_DEFAULT);
+	//lv_obj_set_style_anim_time(ui->screen_31_bar_hum, 1000, 0);
+	//lv_bar_set_mode(ui->screen_31_bar_hum, LV_BAR_MODE_NORMAL);
+	//lv_bar_set_value(ui->screen_31_bar_hum, 50, LV_ANIM_OFF);
+	//lv_bar_set_range(ui->screen_31_bar_hum, -20, 80);
 
     lv_anim_init(&ui->screen_31_anim);
     lv_anim_set_var(&ui->screen_31_anim, ui->screen_5_cont_1);

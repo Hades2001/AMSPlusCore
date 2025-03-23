@@ -67,6 +67,7 @@ typedef struct
 	lv_obj_t *screen_31_lab_hum;
 	lv_obj_t *screen_31_lab_temp;
 	lv_obj_t *screen_31_bar_hum;
+	lv_obj_t *screen_31_lab_info;
 	lv_anim_t screen_31_anim;
 
 	lv_obj_t *screen_41;

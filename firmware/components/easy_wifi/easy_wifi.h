@@ -62,6 +62,9 @@ void generate_softap_ssid(char* buff, size_t size);
 httpd_handle_t start_config_webserver(void);
 httpd_handle_t start_gen_webserver(void);
 
+void initialize_sntp(void);
+void obtain_time(void);
+
 extern EventGroupHandle_t s_wifi_event_group;
 extern QueueHandle_t xqueue_http_msg;
 extern QueueHandle_t xqueue_ota_msg;
