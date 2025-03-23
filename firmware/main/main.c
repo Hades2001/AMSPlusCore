@@ -4,6 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "esp_app_desc.h"
 #include "qmsd_board.h"
 #include "qmsd_utils.h"
 #include "gui_guider.h"
@@ -128,11 +129,14 @@ void connect_to_wifi(){
             lv_label_set_text(ams_ui.screen_21_lab_SSID, "Failed to connect, Reconfigure device");
             reconfigAMSPlus();
         }
-        lv_label_set_text(ams_ui.screen_21_lab_SSID, "Sync sntp time");
-        initialize_sntp();
-        obtain_time();
+
+        //sprintf(formatbuff,"",temp);
+        lv_label_set_text(ams_ui.screen_31_lab_info,get_device_ip());
+        //lv_label_set_text(ams_ui.screen_21_lab_SSID, "Sync sntp time");
+        start_gen_webserver();
+        //initialize_sntp();
+        //obtain_time();
         connect_mqtt(&device_config);
-        
         lv_label_set_text(ams_ui.screen_21_lab_SSID, "Connecting to print mqtt");
         sysstate = kSYS_CONNECT_MQTT;
         
@@ -237,6 +241,9 @@ void app_main(void) {
     config.touch.en = false;
     qmsd_board_init(&config);
 
+    const esp_app_desc_t* app_desc = esp_app_get_description();
+    ESP_LOGI(TAG,"Firmware Version %s",app_desc->version);
+
     lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_11,true);
     vTaskDelay(200);
     lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_21,true);
@@ -299,7 +306,7 @@ void app_main(void) {
     int flush_ams_cnt = 19;
     int ota_s_ota_progress = -1;
     bool is_flushing_filament = true;
-    char *extrusion_cali_json;
+    char *extrusion_cali_json = NULL;
     httpmsg_type_t httpmsg;
     filament_msg_t filament_msg;
 
@@ -310,7 +317,6 @@ void app_main(void) {
             case MQTT_EVENT_CONNECTED:
                 lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_31,true);
                 //mqtt_send_filament_setting();
-                start_gen_webserver();
                 sysstate = kSYS_RUNNING;
                 break;
             case MQTT_EVENT_DATA:
@@ -323,7 +329,9 @@ void app_main(void) {
                 }
                 break;
             case MQTT_EVENT_DISCONNECTED:
-                lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_21,true);
+                if(sysstate == kSYS_RUNNING ){
+                    lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_21,true);
+                }
                 sysstate = kSYS_CONNECT_MQTT;
                 break;
             case MQTT_USER_EVENT:
@@ -357,21 +365,29 @@ void app_main(void) {
             if( flush_ams_cnt > -1){
                 flush_ams_cnt --;
             }
+        }
 
-            if(xQueueReceive(xqueue_ota_msg,&ota_s_ota_progress,5) == pdTRUE){
-                if(ota_s_ota_progress >= 0){
-                    lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_41,true);
-                    lv_bar_set_value(ams_ui.screen_41_bar_ota, ota_s_ota_progress, LV_ANIM_OFF);
-                }
+        if(xQueueReceive(xqueue_ota_msg,&ota_s_ota_progress,5) == pdTRUE){
+            if(ota_s_ota_progress >= 0){
+                lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_41,true);
+                lv_bar_set_value(ams_ui.screen_41_bar_ota, ota_s_ota_progress, LV_ANIM_OFF);
             }
-            if(xQueueReceive(xqueue_get_calilist_msg,&httpmsg,5) == pdTRUE){
-                if(httpmsg == kHTTPMSG_CALI_GET ){
-                    mqtt_send_get_cali_list();
-                }
-            }
-            if(xQueueReceive(xqueue_cali_get_msg,&extrusion_cali_json,5) == pdTRUE){
+        }
+        if(xQueueReceive(xqueue_get_calilist_msg,&httpmsg,5) == pdTRUE){
+            if(sysstate != kSYS_RUNNING ){
                 xQueueSend(xqueue_calilist_json_msg,&extrusion_cali_json,10);
             }
+            else{
+                if(httpmsg == kHTTPMSG_CALI_GET ){
+                    mqtt_send_get_cali_list();
+                }else if(httpmsg == kHTTPMSG_INTO_OTA ){
+                    bambu_mqtt_disconnect();
+                    sysstate = kSYS_OTA;
+                }
+            }
+        }
+        if(xQueueReceive(xqueue_cali_get_msg,&extrusion_cali_json,5) == pdTRUE){
+            xQueueSend(xqueue_calilist_json_msg,&extrusion_cali_json,10);
         }
 
         cnt ++;

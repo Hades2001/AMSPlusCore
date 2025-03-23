@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Device Configuration</title>
+    <style>
+        body {
+            background-color: #1e1e1e;
+            color: #ddd;
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            padding: 1rem;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 1rem;
+            padding: 2rem;
+            color: #1e1e1e;
+            background-color: #00b894;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        /* Tab styles */
+        .tabs {
+            display: flex;
+            margin-bottom: 0;
+            justify-content: left;
+        }
+        .tab {
+            background-color: #333;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 0 5px 0 0;
+            border-radius: 8px 8px 0 0;
+            transition: background-color 0.3s;
+        }
+        .tab:hover {
+            background-color: #444;
+        }
+        .tab.active {
+            background-color: #00b894;
+            color: #fff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        .sub_body {
+            background-color: #262626;
+            padding: 1rem;
+        }
+
+        /* Form styles for device info */
+        .form-group {
+            margin-bottom: 1.5rem;
+            padding: 0 1rem;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+            box-sizing: border-box;
+            border-radius: 6px;
+            border: 1px solid #555;
+            background-color: #333;
+            color: #fff;
+        }
+        /* 现代风格的绿色按钮 */
+        button {
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            background-color: #00b894; /* 一种清爽的绿色 */
+            color: #fff;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #019875;
+        }
+
+        /* File upload styles */
+        input[type="file"] {
+            padding: 0.75rem;
+            font-size: 1rem;
+            margin-top: 1rem;
+            background-color: #444;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+        }
+        input[type="file"]:hover {
+            background-color: #555;
+        }
+
+        #updateButton {
+            background-color: #555;
+            color: #888;
+            border: 1px solid #666;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: not-allowed;
+        }
+        #updateButton.active {
+            background-color: #00b894;
+            color: white;
+            cursor: pointer;
+        }
+        #updateButton:hover.active {
+            background-color: #00b894;
+        }
+        #updateButton.updating {
+            background-color: #f1c232 !important;
+            color: white !important;
+            cursor: not-allowed;
+        }
+        
+        /* 加载图标（Spinner） */
+        #loading {
+            display: none;
+            margin: 0 auto 1rem auto;
+            width: 50px;
+            height: 50px;
+            border: 6px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 6px solid #3498db;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loading_ota {
+            display: none;
+            margin: 1rem auto 1rem auto;
+            width: 50px;
+            height: 50px;
+            border: 6px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 6px solid #3498db;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+
+        /* 底部的刷新按钮容器：水平居中 */
+        .bottom-button-container {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* 表格更现代的风格 */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background-color: #2c2c2c;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        thead {
+            background-color: #333;
+        }
+        th {
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+        }
+        tbody tr {
+            border-bottom: 1px solid #444;
+        }
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+        td {
+            padding: 0.75rem;
+        }
+        th:nth-of-type(1) {
+            background-color: #444;
+        }
+        td:nth-of-type(1) {
+            background-color: #3c3c3c;
+        }
+        tbody tr:hover {
+            background-color: #3a3a3a;
+        }
+
+        /* 移动端适配：将表格分块显示 */
+        @media (max-width: 600px) {
+            table, thead, tbody, th, td, tr {
+                display: block;
+                width: 100%;
+            }
+            thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+            tbody tr {
+                margin-bottom: 1rem;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+                border-radius: 8px;
+                overflow: hidden;
+                background-color: #2c2c2c;
+            }
+            td {
+                border: none;
+                position: relative;
+                padding-left: 50%;
+                text-align: left;
+                border-bottom: 1px solid #444;
+            }
+            td:last-child {
+                border-bottom: none;
+            }
+            td:before {
+                position: absolute;
+                left: 1rem;
+                width: 45%;
+                white-space: nowrap;
+                font-weight: bold;
+            }
+            td:nth-of-type(1):before { content: "cali_idx"; }
+            td:nth-of-type(2):before { content: "name"; }
+            td:nth-of-type(3):before { content: "filament_id"; }
+            td:nth-of-type(4):before { content: "k_value"; }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AMS Plus Devide</h1>
+
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('info')">Device Info</div>
+            <div class="tab" onclick="showTab('ota')">OTA Update</div>
+            <div class="tab" onclick="showTab('calilist')">Calibration List</div>
+        </div>
+        <div class="sub_body">
+            <!-- Device Info Tab -->
+            <div id="info" class="tab-content active">
+                <div class="form-group">
+                    <label for="version">Device Version</label>
+                    <input type="text" id="version" value="1.0.0" disabled />
+                </div>
+                <div class="form-group">
+                    <label for="ssid">Wi-Fi SSID</label>
+                    <input type="text" id="ssid" />
+                </div>
+                <div class="form-group">
+                    <label for="passwd">Wi-Fi Password</label>
+                    <input type="password" id="passwd" />
+                </div>
+                <div class="form-group">
+                    <label for="rssi">Wi-Fi RSSI</label>
+                    <input type="text" id="rssi" value="-50" disabled />
+                </div>
+                <div class="form-group">
+                    <label for="p_ip">Bambu 3D Printing IP</label>
+                    <input type="text" id="p_ip" />
+                </div>
+                <div class="form-group">
+                    <label for="p_passwd">Bambu 3D Printing Password</label>
+                    <input type="password" id="p_passwd" />
+                </div>
+                <div class="form-group">
+                    <label for="p_device_id">Bambu 3D Printing DeviceID</label>
+                    <input type="text" id="p_device_id" />
+                </div>
+                <div class="form-group">
+                    <label for="ams_id">Bambu AMS ID</label>
+                    <select id="ams_id">
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                    </select>
+                </div>
+                <button onclick="saveAndRestart()">Save & Restart</button>
+            </div>
+
+            <!-- OTA Update Tab -->
+            <div id="ota" class="tab-content">
+                <input type=file id=fileInput accept=.bin onchange=checkFileSelection()>
+                <div id="loading_ota"></div>
+                <button id="updateButton" onclick="uploadFirmware()" disabled>Upload</button>
+            </div>
+
+            <!-- Calibration List Tab -->
+            <div id="calilist" class="tab-content">
+
+                <!-- 加载图标 -->
+                <div id="loading"></div>
+        
+                <!-- 表格数据展示 -->
+                <table id="caliTable">
+                    <thead>
+                        <tr>
+                            <th>Cali_idx</th>
+                            <th>Name</th>
+                            <th>Filament_id</th>
+                            <th>K_Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+
+                <!-- 底部刷新按钮 -->
+                <div class="bottom-button-container">
+                    <button onclick="refreshData()">Refresh</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            // Fetch device info from /info/r when the page loads
+            fetch('/info/r')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('version').value = data.version;
+                    document.getElementById('ssid').value = data.ssid;
+                    document.getElementById('passwd').value = data.passwd;
+                    document.getElementById('rssi').value = data.rssi;
+                    document.getElementById('p_ip').value = data.p_ip;
+                    document.getElementById('p_passwd').value = data.p_passwd;
+                    document.getElementById('p_device_id').value = data.p_device_id;
+                    document.getElementById('ams_id').value = data.ams_id;
+                })
+                .catch(err => console.error('Error fetching device info:', err));
+
+             refreshData();
+        };
+
+        function showTab(tab) {
+            // Hide all tabs
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tabContent => {
+                tabContent.classList.remove('active');
+            });
+
+            // Remove active class from all tab buttons
+            const tabButtons = document.querySelectorAll('.tab');
+            tabButtons.forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // Show the selected tab
+            document.getElementById(tab).classList.add('active');
+            document.querySelector(`.tab[onclick="showTab('${tab}')"]`).classList.add('active');
+        }
+
+        function saveAndRestart() {
+            const deviceInfo = {
+                version: document.getElementById('version').value,
+                ssid: document.getElementById('ssid').value,
+                passwd: document.getElementById('passwd').value,
+                rssi: document.getElementById('rssi').value,
+                p_ip: document.getElementById('p_ip').value,
+                p_passwd: document.getElementById('p_passwd').value,
+                p_device_id: document.getElementById('p_device_id').value,
+                ams_id: document.getElementById('ams_id').value
+            };
+
+            fetch('/info/w', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(deviceInfo)
+            })
+            .then(response => response.json())
+            .then(data => alert("Device info saved and restarting..."))
+            .catch(error => console.error('Error:', error));
+        }
+
+        function checkFileSelection() {
+            const fileInput = document.getElementById("fileInput");
+            const updateButton = document.getElementById("updateButton");
+            if (fileInput.files.length > 0 && fileInput.files[0].name.endsWith('.bin')) {
+                updateButton.classList.add("active");
+                updateButton.disabled = false;
+            } else {
+                updateButton.classList.remove("active");
+                updateButton.disabled = true;
+            }
+        }
+        function uploadFirmware() {
+            const fileInput = document.getElementById("fileInput");
+            const updateButton = document.getElementById("updateButton");
+            const file = fileInput.files[0];
+            if (file && file.name.endsWith(".bin")) {
+                updateButton.textContent = 'Updating...';
+                updateButton.classList.add('updating');
+                updateButton.disabled = true;
+                document.getElementById('loading_ota').style.display = 'block';
+                document.getElementById('updateButton').style.display = 'none';
+                const formData = new FormData();
+                formData.append("firmware", file);
+                fetch("/upload", {
+                    method: "POST",
+                    body: formData,
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("Firmware uploaded successfully!");
+                    } else {
+                        alert("Error uploading firmware.");
+                    }
+                    updateButton.textContent = 'Upload';
+                    updateButton.classList.remove('updating');
+                    updateButton.disabled = false;
+                    document.getElementById('loading_ota').style.display = 'none';
+                    document.getElementById('updateButton').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    alert("Failed to upload firmware.");
+                    updateButton.textContent = 'Upload';
+                    updateButton.classList.remove('updating');
+                    updateButton.disabled = false;
+                    document.getElementById('loading_ota').style.display = 'none';
+                    document.getElementById('updateButton').style.display = 'block';
+                });
+            } else {
+                alert("Please select a valid .bin file.");
+            }
+        }
+
+        function refreshData() {
+        // 显示加载图标
+        document.getElementById('loading').style.display = 'block';
+
+        fetch('/calilist/data')
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            const tbody = document.getElementById('caliTable').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = '';
+            // 假设 JSON 结构为 data.print.filaments
+            const filaments = data.print.filaments;
+            filaments.forEach(item => {
+                const row = document.createElement('tr');
+
+                // cail_idx
+                let cell = document.createElement('td');
+                cell.textContent = item.cali_idx || '';
+                row.appendChild(cell);
+
+                // name
+                cell = document.createElement('td');
+                cell.textContent = item.name || '';
+                row.appendChild(cell);
+
+                // filament_id
+                cell = document.createElement('td');
+                cell.textContent = item.filament_id || '';
+                row.appendChild(cell);
+
+                // k_value
+                cell = document.createElement('td');
+                cell.textContent = item.k_value || '';
+                row.appendChild(cell);
+
+                tbody.appendChild(row);
+            });
+        })
+        .catch(err => {
+            console.error('获取数据时出错:', err);
+        })
+        .finally(() => {
+            // 无论成功或失败都隐藏加载图标
+            document.getElementById('loading').style.display = 'none';
+        });
+    }
+    </script>
+</body>
+</html>

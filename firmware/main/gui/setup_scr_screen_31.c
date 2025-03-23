@@ -539,8 +539,8 @@ void setup_scr_screen_31(lv_ui *ui){
 
 	ui->screen_31_lab_info = lv_label_create(ui->screen_5_cont_1);
 
-	lv_obj_set_pos(ui->screen_31_lab_info, 165, 175);
-	lv_obj_set_size(ui->screen_31_lab_info, 70, 20);
+	lv_obj_set_pos(ui->screen_31_lab_info, 164, 175);
+	lv_obj_set_size(ui->screen_31_lab_info, 70, 18);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_info, LV_SCROLLBAR_MODE_OFF);
 	lv_label_set_text(ui->screen_31_lab_info, "192.168.0.1");
 	lv_label_set_long_mode(ui->screen_31_lab_info, LV_LABEL_LONG_SCROLL);
@@ -558,10 +558,10 @@ void setup_scr_screen_31(lv_ui *ui){
 	lv_style_set_bg_grad_dir(&style_screen_31_lab_info_main_main_default, LV_GRAD_DIR_NONE);
 	lv_style_set_bg_opa(&style_screen_31_lab_info_main_main_default, 0);
 	lv_style_set_text_color(&style_screen_31_lab_info_main_main_default, lv_color_make(0xff, 0xff, 0xff));
-	lv_style_set_text_font(&style_screen_31_lab_info_main_main_default, &lv_customer_font_Teko_Regular_35);
+	lv_style_set_text_font(&style_screen_31_lab_info_main_main_default, &lv_font_Teko_Regular_17);
 	lv_style_set_text_letter_space(&style_screen_31_lab_info_main_main_default, 0);
 	lv_style_set_text_line_space(&style_screen_31_lab_info_main_main_default, 0);
-	lv_style_set_text_align(&style_screen_31_lab_info_main_main_default, LV_TEXT_ALIGN_CENTER);
+	lv_style_set_text_align(&style_screen_31_lab_info_main_main_default, LV_TEXT_ALIGN_LEFT);
 	lv_style_set_pad_left(&style_screen_31_lab_info_main_main_default, 0);
 	lv_style_set_pad_right(&style_screen_31_lab_info_main_main_default, 0);
 	lv_style_set_pad_top(&style_screen_31_lab_info_main_main_default, 0);

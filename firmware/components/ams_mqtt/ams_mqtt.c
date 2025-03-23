@@ -379,7 +379,7 @@ void init_mqtt(char* printer_ip,char* printer_password,char* printer_device_id)
         },
         .credentials = {
             .username = "bblp",
-            .client_id = "amsplus_client",
+            .client_id = "amsplus_client_",
             .authentication.password = device_password
         },
         .buffer = {
@@ -400,4 +400,8 @@ void init_mqtt(char* printer_ip,char* printer_password,char* printer_device_id)
     /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(client);
+}
+
+void bambu_mqtt_disconnect(){
+    esp_mqtt_client_disconnect(client);
 }

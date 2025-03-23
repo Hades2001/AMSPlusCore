@@ -10,8 +10,13 @@ if(NOT DEFINED ENV{QMSD_8MS_PATH})
     set(ENV{QMSD_8MS_PATH} ${QMSD_8MS_PATH})
 endif()
 
+
+# sset(PROJECT_VER "1.0.0")
+
 include($ENV{QMSD_8MS_PATH}/component.cmake)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+
 project(AMSPlus)
 
-target_add_binary_data(AMSPlus.elf "main/ca_certificate.pem" TEXT)
+target_add_binary_data(AMSPlus.elf "ca_certificate.pem" TEXT)
+target_add_binary_data(AMSPlus.elf "index.html" TEXT)

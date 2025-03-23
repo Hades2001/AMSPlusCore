@@ -27,3 +27,4 @@ void init_mqtt(char* printer_ip,char* printer_password,char* printer_device_id);
 int enqueue_print_message(char* _payload, size_t _len,uint16_t _sequence_id);
 int mqtt_send_filament_setting();
 int mqtt_send_get_cali_list();
+void bambu_mqtt_disconnect();

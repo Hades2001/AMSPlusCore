@@ -1,5 +1,4 @@
 idf_component_register(
-    SRC_DIRS . ui_resource gui
     INCLUDE_DIRS . gui ui_resource
 
     SRCS "ui_resource/_connection_alpha_18x18.c"

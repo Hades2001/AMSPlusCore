@@ -41,17 +41,20 @@
 typedef enum httpmsg_type{
     kHTTPMSG_DEVICE_SET = 0,
     kHTTPMSG_CALI_GET,
+    kHTTPMSG_INTO_OTA,
     kHTTPMSG_MAX,
 }httpmsg_type_t;
 
 typedef struct http_config{
     int  type;
+    char version[32];
     char ssid[32];
     char password[64];
-    char printer_ip[32];
-    char printer_password[32];
-    char printer_device_id[32];
-    char ams_id[32];
+    char rssi[8];
+    char printer_ip[20];
+    char printer_password[16];
+    char printer_device_id[20];
+    char ams_id[4];
 }http_config_t;
 
 void wifi_init_sta(char* wifi_ssid,char* wifi_pwd);
@@ -61,6 +64,7 @@ void wifi_init_softap(void *event_handler_arg);
 void generate_softap_ssid(char* buff, size_t size);
 httpd_handle_t start_config_webserver(void);
 httpd_handle_t start_gen_webserver(void);
+char* get_device_ip(void);
 
 void initialize_sntp(void);
 void obtain_time(void);

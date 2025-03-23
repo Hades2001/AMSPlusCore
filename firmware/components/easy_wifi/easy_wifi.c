@@ -10,9 +10,7 @@
 #include "easy_wifi.h"
 #include "esp_sntp.h"
 
-#define NTP_SERVER "pool.ntp.org"
-#define GMT_OFFSET_SEC  3600    // 设置时区偏移，例如中国时区为+1小时，即3600秒
-#define DAYLIGHT_OFFSET_SEC  0   // 是否开启夏令时，如果开启设置为3600秒
+#include "cJSON.h"
 
 #define TAG "E-WIFI"
 
@@ -53,6 +51,7 @@ void obtain_time(void)
 
 static int s_retry_num = 0;
 EventGroupHandle_t s_wifi_event_group;
+char* device_ipstr[20] = {};
 
 static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
@@ -71,6 +70,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        snprintf(device_ipstr,20,IPSTR,IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
@@ -123,6 +123,11 @@ void wifi_init_sta(char* wifi_ssid,char* wifi_pwd)
     ESP_ERROR_CHECK(esp_wifi_start() );
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
+}
+
+char* get_device_ip(void)
+{
+    return device_ipstr;
 }
 
 /**
@@ -741,7 +746,6 @@ httpd_handle_t start_config_webserver(void)
 #include "esp_ota_ops.h"
 #include "esp_flash_partitions.h"
 
-#define FIRMWARE_VERSION "B1.0.7"
 #define OTA_WEB_PORT    80
 
 static int s_ota_progress = -1;
@@ -771,151 +775,163 @@ static esp_err_t finalize_ota(esp_ota_handle_t ota_handle, const esp_partition_t
     return ESP_OK; // 不会真正执行到这里
 }
 
-// ========== 3. HTTP 服务器回调部分 ========== //
+#include "esp_app_desc.h"
 
-const char *html_template =
-    "<!DOCTYPE html>"
-    "<html lang=\"en\">"
-    "<head>"
-    "    <meta charset=\"UTF-8\">"
-    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-    "    <title>Firmware Upload</title>"
-    "    <style>"
-    "        body {"
-    "            font-family: Arial, sans-serif;"
-    "            background-color: #2e2e2e;"
-    "            color: white;"
-    "            display: flex;"
-    "            justify-content: center;"
-    "            align-items: center;"
-    "            height: 100vh;"
-    "            margin: 0;"
-    "        }"
-    "        .container {"
-    "            background-color: #3a3a3a;"
-    "            padding: 20px;"
-    "            border-radius: 10px;"
-    "            text-align: center;"
-    "        }"
-    "        input[type=\"file\"] {"
-    "            background-color: #333;"
-    "            color: #fff;"
-    "            border: 1px solid #666;"
-    "            padding: 10px;"
-    "            border-radius: 5px;"
-    "        }"
-    "        input[type=\"file\"]:hover {"
-    "            cursor: pointer;"
-    "        }"
-    "        #updateButton {"
-    "            background-color: #555;"
-    "            color: #888;"
-    "            border: 1px solid #666;"
-    "            padding: 10px 20px;"
-    "            border-radius: 5px;"
-    "            cursor: not-allowed;"
-    "        }"
-    "        #updateButton.active {"
-    "            background-color: #28a745;"
-    "            color: white;"
-    "            cursor: pointer;"
-    "        }"
-    "        #updateButton:hover.active {"
-    "            background-color: #218838;"
-    "        }"
-    "        #updateButton.updating {"
-    "            background-color: #f1c232 !important;"
-    "            color: white !important;"
-    "            cursor: not-allowed;"
-    "        }"
-    "        .version {"
-    "            margin: 20px;"
-    "            font-size: 16px;"
-    "            color: #bbb;"
-    "        }"
-    "    </style>"
-    "</head>"
-    "<body>"
-    "<div class=\"container\">"
-    "    <h2>Upload Firmware</h2>"
-    "    <div class=\"version\">Firmware Version: <span id=\"versionDisplay\">"FIRMWARE_VERSION"</span></div>"
-    "    <input type=\"file\" id=\"fileInput\" accept=\".bin\" onchange=\"checkFileSelection()\">"
-    "    <br><br>"
-    "    <button id=\"updateButton\" onclick=\"uploadFirmware()\" disabled>Upload</button>"
-    "</div>"
-    "<script>"
-    "    function checkFileSelection() {"
-    "        const fileInput = document.getElementById(\"fileInput\");"
-    "        const updateButton = document.getElementById(\"updateButton\");"
-    "        if (fileInput.files.length > 0 && fileInput.files[0].name.endsWith('.bin')) {"
-    "            updateButton.classList.add(\"active\");"
-    "            updateButton.disabled = false;"
-    "        } else {"
-    "            updateButton.classList.remove(\"active\");"
-    "            updateButton.disabled = true;"
-    "        }"
-    "    }"
-    "    function uploadFirmware() {"
-    "        const fileInput = document.getElementById(\"fileInput\");"
-    "        const updateButton = document.getElementById(\"updateButton\");"
-    "        const file = fileInput.files[0];"
-    "        if (file && file.name.endsWith(\".bin\")) {"
-    "            updateButton.textContent = 'Updating...';"
-    "            updateButton.classList.add('updating');"
-    "            updateButton.disabled = true;"
-    "            const formData = new FormData();"
-    "            formData.append(\"firmware\", file);"
-    "            fetch(\"/upload\", {"
-    "                method: \"POST\","
-    "                body: formData,"
-    "            })"
-    "            .then(response => response.json())"
-    "            .then(data => {"
-    "                if (data.success) {"
-    "                    alert(\"Firmware uploaded successfully!\");"
-    "                } else {"
-    "                    alert(\"Error uploading firmware.\");"
-    "                }"
-    "                updateButton.textContent = 'Upload';"
-    "                updateButton.classList.remove('updating');"
-    "                updateButton.disabled = false;"
-    "            })"
-    "            .catch(error => {"
-    "                console.error(\"Error:\", error);"
-    "                alert(\"Failed to upload firmware.\");"
-    "                updateButton.textContent = 'Upload';"
-    "                updateButton.classList.remove('updating');"
-    "                updateButton.disabled = false;"
-    "            });"
-    "        } else {"
-    "            alert(\"Please select a valid .bin file.\");"
-    "        }"
-    "    }"
-    "    function displayVersion() {"
-    "        const version = \""FIRMWARE_VERSION"\";"
-    "        document.getElementById(\"versionDisplay\").textContent = version;"
-    "    }"
-    "    window.onload = displayVersion;"
-    "</script>"
-    "</body>"
-    "</html>";
+char* device_info_to_json(http_config_t *info)
+{
+    // 创建 cJSON 根对象
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) {
+        return NULL; 
+    }
+    const esp_app_desc_t* app_desc = esp_app_get_description();
+    int _rssi;
+    esp_wifi_sta_get_rssi(&_rssi);
+    snprintf(info->rssi,sizeof(info->rssi),"%d",_rssi);
+    // 将结构体字段逐一加入 JSON
+    cJSON_AddStringToObject(root, "version",     app_desc->version);
+    cJSON_AddStringToObject(root, "ssid",        info->ssid);
+    cJSON_AddStringToObject(root, "passwd",      info->password);
+    cJSON_AddStringToObject(root, "rssi",        info->rssi);
+    cJSON_AddStringToObject(root, "p_ip",        info->printer_ip);
+    cJSON_AddStringToObject(root, "p_passwd",    info->printer_password);
+    cJSON_AddStringToObject(root, "p_device_id", info->printer_device_id);
+    cJSON_AddStringToObject(root, "ams_id",      info->ams_id);
 
+    // 生成 JSON 字符串（带缩进）
+    char *json_str = cJSON_PrintUnformatted(root); 
+    // 或使用 cJSON_Print() 若想要有缩进和换行
+
+    // 清理根对象
+    cJSON_Delete(root);
+
+    // 返回 JSON 字符串，注意：需在外部释放内存（free）
+    return json_str;
+}
+
+bool json_to_device_info(const char *json_str, http_config_t *info)
+{
+    if (json_str == NULL || info == NULL) {
+        return false;
+    }
+
+    // 解析 JSON
+    cJSON *root = cJSON_Parse(json_str);
+    if (root == NULL) {
+        ESP_LOGE("JSON", "Failed to parse JSON.");
+        return false;
+    }
+
+    // 依次获取各字段并赋值
+    cJSON *item = NULL;
+
+    // ssid
+    item = cJSON_GetObjectItem(root, "ssid");
+    if (cJSON_IsString(item)) {
+        strncpy(info->ssid, item->valuestring, sizeof(info->ssid) - 1);
+    }
+
+    // passwd
+    item = cJSON_GetObjectItem(root, "passwd");
+    if (cJSON_IsString(item)) {
+        strncpy(info->password, item->valuestring, sizeof(info->password) - 1);
+    }
+
+    // p_ip
+    item = cJSON_GetObjectItem(root, "p_ip");
+    if (cJSON_IsString(item)) {
+        strncpy(info->printer_ip, item->valuestring, sizeof(info->printer_ip) - 1);
+    }
+
+    // p_passwd
+    item = cJSON_GetObjectItem(root, "p_passwd");
+    if (cJSON_IsString(item)) {
+        strncpy(info->printer_password, item->valuestring, sizeof(info->printer_password) - 1);
+    }
+
+    // p_device_id
+    item = cJSON_GetObjectItem(root, "p_device_id");
+    if (cJSON_IsString(item)) {
+        strncpy(info->printer_device_id, item->valuestring, sizeof(info->printer_device_id) - 1);
+    }
+
+    // ams_id
+    item = cJSON_GetObjectItem(root, "ams_id");
+    if (cJSON_IsString(item)) {
+        strncpy(info->ams_id, item->valuestring, sizeof(info->ams_id) - 1);
+    }
+
+    // 释放 JSON 根对象
+    cJSON_Delete(root);
+    return true;
+}
+
+
+
+extern const uint8_t temp_index_html_start[]   asm("_binary_index_html_start");
+extern const uint8_t temp_index_html_end[]   asm("_binary_index_html_end");
 
 // 主页：展示固件版本信息以及一个上传固件的表单（使用深色主题 + 弹性布局）
-static esp_err_t ota_get_handler(httpd_req_t *req)
+static esp_err_t index_get_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, html_template, strlen(html_template));
+    httpd_resp_send(req, (const char*)temp_index_html_start, strlen((const char*)temp_index_html_start));
     return ESP_OK;
 }
 
-// 进度查询接口（返回一个数字，代表当前进度）
-static esp_err_t progress_get_handler(httpd_req_t *req)
+static esp_err_t device_info_get_handler(httpd_req_t *req)
 {
-    char resp_buf[8];
-    snprintf(resp_buf, sizeof(resp_buf), "%d", s_ota_progress);
-    httpd_resp_set_type(req, "text/plain");
-    httpd_resp_send(req, resp_buf, strlen(resp_buf));
+    http_config_t device_config;
+    esp_err_t ret = load_config_from_nvs(&device_config);
+    if(ret!= ESP_OK){
+        ESP_LOGE(TAG,"Load device info fault");
+        httpd_resp_send(req,"", 0);
+        return false;
+    }
+    httpd_resp_set_type(req, "application/json");
+    char* jsonplayload = device_info_to_json(&device_config);
+    if(jsonplayload == NULL){
+        ESP_LOGE(TAG,"Load device info fault");
+        httpd_resp_send(req,"", 0);
+        return false;
+    }
+    httpd_resp_send(req, jsonplayload, strlen(jsonplayload));
+    free(jsonplayload);
+    return ESP_OK;
+}
+
+static esp_err_t device_info_write_handler(httpd_req_t *req)
+{
+    int total_len = req->content_len;
+    char* buf = heap_caps_malloc(total_len+2, MALLOC_CAP_SPIRAM);
+    if(buf==NULL){
+        const char json_msg[] = "{\"status\": \"error\", \"message\": \"no memory to malloc recv buff\"}";
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_send(req, json_msg, HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+
+    memset(buf,0,total_len+2);
+
+    ESP_LOGI(TAG, "Received Len: %d", total_len);
+
+    httpd_req_recv(req, buf, total_len);
+
+    ESP_LOGI(TAG, "Received JSON: %s", buf);
+    httpd_resp_set_type(req, "application/json");
+    http_config_t device_config;
+    json_to_device_info(buf,&device_config);
+    esp_err_t res = save_config_to_nvs((const http_config_t*)&device_config);
+    if(res != ESP_OK){
+        const char json_msg[] = "{\"status\": \"error\", \"message\": \"Fault to write NVS\"}";
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_send(req, json_msg, HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+    const char json_msg[] = "{\"status\": \"success\", \"message\": \"Device info saved.\"}";
+    httpd_resp_send(req, json_msg, HTTPD_RESP_USE_STRLEN);
+    vTaskDelay(2000);
+    esp_restart();
     return ESP_OK;
 }
 
@@ -943,6 +959,15 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "No boundary in Content-Type");
         return ESP_FAIL;
     }
+
+    httpmsg_type_t type = kHTTPMSG_INTO_OTA;
+
+    if (xQueueSend(xqueue_get_calilist_msg, &type, 10) != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to send msg to queue!");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
     b_ptr += strlen("boundary=");
     char boundary[64];
     snprintf(boundary, sizeof(boundary), "--%s", b_ptr); // 需加 "--"
@@ -1170,248 +1195,21 @@ static esp_err_t calilist_data_get_handler(httpd_req_t *req)
     ssize_t calilist_json_len = 0;
     if(xQueueReceive(xqueue_calilist_json_msg,&calilist_json_ptr,20000) != pdTRUE){
         ESP_LOGW(TAG,"Failed to get cali list, xQueueReceive fault");
-        calilist_json_len = 0;
+        httpd_resp_send(req, "", calilist_json_len);
+        return ESP_FAIL;
     }
     if(calilist_json_ptr == NULL ){
         ESP_LOGW(TAG,"Failed to get cali list, calilist_json_ptr is nullptr");
-        calilist_json_len = 0;
+        httpd_resp_send(req, "", calilist_json_len);
+        return ESP_FAIL;
     }
     else{
         calilist_json_len = strlen(calilist_json_ptr);
         ESP_LOGI(TAG,"Success to get cali list %d %s",calilist_json_len,calilist_json_ptr);
+        httpd_resp_send(req, calilist_json_ptr, calilist_json_len);
+        free(calilist_json_ptr);
     }
-    httpd_resp_send(req, calilist_json_ptr, calilist_json_len);
-    return ESP_OK;
-}
-
-// 处理 /calilist 请求，返回一个简单的 HTML 网页
-static esp_err_t calilist_get_handler(httpd_req_t *req)
-{
-    const char *resp_str =
-    "<!DOCTYPE html>\n"
-    "<html lang=\"en\">\n"
-    "<head>\n"
-    "    <meta charset=\"UTF-8\" />\n"
-    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n"
-    "    <title>Calibration List</title>\n"
-    "    <style>\n"
-    "        body {\n"
-    "            background-color: #1e1e1e; /* 更深的暗色背景 */\n"
-    "            color: #ddd;               /* 较浅的文字颜色 */\n"
-    "            margin: 0;\n"
-    "            font-family: Arial, Helvetica, sans-serif;\n"
-    "            padding: 1rem;\n"
-    "        }\n"
-    "        h1 {\n"
-    "            text-align: center;\n"
-    "            margin-bottom: 1rem;\n"
-    "        }\n"
-    "        .container {\n"
-    "            max-width: 800px;\n"
-    "            margin: 0 auto;\n"
-    "            padding: 1rem;\n"
-    "        }\n"
-    "\n"
-    "        /* 加载图标（Spinner） */\n"
-    "        #loading {\n"
-    "            display: none;\n"
-    "            margin: 0 auto 1rem auto;\n"
-    "            width: 50px;\n"
-    "            height: 50px;\n"
-    "            border: 6px solid #f3f3f3;\n"
-    "            border-radius: 50%;\n"
-    "            border-top: 6px solid #3498db;\n"
-    "            animation: spin 1s linear infinite;\n"
-    "        }\n"
-    "        @keyframes spin {\n"
-    "            0% { transform: rotate(0deg); }\n"
-    "            100% { transform: rotate(360deg); }\n"
-    "        }\n"
-    "\n"
-    "        /* 表格更现代的风格 */\n"
-    "        table {\n"
-    "            width: 100%;\n"
-    "            border-collapse: separate;\n"
-    "            border-spacing: 0;\n"
-    "            background-color: #2c2c2c;\n"
-    "            border-radius: 8px;\n"
-    "            overflow: hidden;\n"
-    "            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);\n"
-    "        }\n"
-    "        thead {\n"
-    "            background-color: #333;\n"
-    "        }\n"
-    "        th {\n"
-    "            padding: 0.75rem;\n"
-    "            text-align: left;\n"
-    "            font-weight: 600;\n"
-    "        }\n"
-    "        tbody tr {\n"
-    "            border-bottom: 1px solid #444;\n"
-    "        }\n"
-    "        tbody tr:last-child {\n"
-    "            border-bottom: none;\n"
-    "        }\n"
-    "        td {\n"
-    "            padding: 0.75rem;\n"
-    "        }\n"
-    "        /* 给 cali_idx (第一列) 设置底色以区分 */\n"
-    "        /* 如果想让整列区别更明显，可保持以下样式，也可以去掉视需求而定 */\n"
-    "        th:nth-of-type(1) {\n"
-    "            background-color: #444;\n"
-    "        }\n"
-    "        td:nth-of-type(1) {\n"
-    "            background-color: #3c3c3c;\n"
-    "        }\n"
-    "        /* 悬停行高亮 */\n"
-    "        tbody tr:hover {\n"
-    "            background-color: #3a3a3a;\n"
-    "        }\n"
-    "\n"
-    "        /* 移动端适配：将表格分块显示 */\n"
-    "        @media (max-width: 600px) {\n"
-    "            table, thead, tbody, th, td, tr {\n"
-    "                display: block;\n"
-    "                width: 100%;\n"
-    "            }\n"
-    "            thead tr {\n"
-    "                position: absolute;\n"
-    "                top: -9999px;\n"
-    "                left: -9999px;\n"
-    "            }\n"
-    "            tbody tr {\n"
-    "                margin-bottom: 1rem;\n"
-    "                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);\n"
-    "                border-radius: 8px;\n"
-    "                overflow: hidden;\n"
-    "                background-color: #2c2c2c;\n"
-    "            }\n"
-    "            td {\n"
-    "                border: none;\n"
-    "                position: relative;\n"
-    "                padding-left: 50%;\n"
-    "                text-align: left;\n"
-    "                border-bottom: 1px solid #444;\n"
-    "            }\n"
-    "            td:last-child {\n"
-    "                border-bottom: none;\n"
-    "            }\n"
-    "            td:before {\n"
-    "                position: absolute;\n"
-    "                left: 1rem;\n"
-    "                width: 45%;\n"
-    "                white-space: nowrap;\n"
-    "                font-weight: bold;\n"
-    "            }\n"
-    "            td:nth-of-type(1):before { content: \"cali_idx\"; }\n"
-    "            td:nth-of-type(2):before { content: \"name\"; }\n"
-    "            td:nth-of-type(3):before { content: \"filament_id\"; }\n"
-    "            td:nth-of-type(4):before { content: \"k_value\"; }\n"
-    "        }\n"
-    "\n"
-    "        /* 底部的刷新按钮容器：水平居中 */\n"
-    "        .bottom-button-container {\n"
-    "            margin-top: 1.5rem;\n"
-    "            display: flex;\n"
-    "            justify-content: center;\n"
-    "        }\n"
-    "        /* 现代风格的绿色按钮 */\n"
-    "        button {\n"
-    "            padding: 0.8rem 1.5rem;\n"
-    "            font-size: 1rem;\n"
-    "            cursor: pointer;\n"
-    "            border: none;\n"
-    "            background-color: #00b894; /* 一种清爽的绿色 */\n"
-    "            color: #fff;\n"
-    "            border-radius: 6px;\n"
-    "            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);\n"
-    "            transition: background-color 0.3s ease;\n"
-    "        }\n"
-    "        button:hover {\n"
-    "            background-color: #019875;\n"
-    "        }\n"
-    "    </style>\n"
-    "</head>\n"
-    "<body onload=\"refreshData()\"> <!-- 网页加载后自动刷新一次 -->\n"
-    "    <div class=\"container\">\n"
-    "        <h1>Calibration List</h1>\n"
-    "\n"
-    "        <!-- 加载图标 -->\n"
-    "        <div id=\"loading\"></div>\n"
-    "\n"
-    "        <!-- 表格数据展示 -->\n"
-    "        <table id=\"caliTable\">\n"
-    "            <thead>\n"
-    "                <tr>\n"
-    "                    <th>Cali_idx</th>\n"
-    "                    <th>Name</th>\n"
-    "                    <th>Filament_id</th>\n"
-    "                    <th>K_Value</th>\n"
-    "                </tr>\n"
-    "            </thead>\n"
-    "            <tbody>\n"
-    "            </tbody>\n"
-    "        </table>\n"
-    "\n"
-    "        <!-- 底部刷新按钮 -->\n"
-    "        <div class=\"bottom-button-container\">\n"
-    "            <button onclick=\"refreshData()\">Refresh</button>\n"
-    "        </div>\n"
-    "    </div>\n"
-    "\n"
-    "    <script>\n"
-    "    function refreshData() {\n"
-    "        // 显示加载图标\n"
-    "        document.getElementById('loading').style.display = 'block';\n"
-    "\n"
-    "        fetch('/calilist/data')\n"
-    "        .then(response => response.json())\n"
-    "        .then(data => {\n"
-    "            console.log(data);\n"
-    "            const tbody = document.getElementById('caliTable').getElementsByTagName('tbody')[0];\n"
-    "            tbody.innerHTML = '';\n"
-    "            // 假设 JSON 结构为 data.print.filaments\n"
-    "            const filaments = data.print.filaments;\n"
-    "            filaments.forEach(item => {\n"
-    "                const row = document.createElement('tr');\n"
-    "\n"
-    "                // cail_idx\n"
-    "                let cell = document.createElement('td');\n"
-    "                cell.textContent = item.cali_idx || '';\n"
-    "                row.appendChild(cell);\n"
-    "\n"
-    "                // name\n"
-    "                cell = document.createElement('td');\n"
-    "                cell.textContent = item.name || '';\n"
-    "                row.appendChild(cell);\n"
-    "\n"
-    "                // filament_id\n"
-    "                cell = document.createElement('td');\n"
-    "                cell.textContent = item.filament_id || '';\n"
-    "                row.appendChild(cell);\n"
-    "\n"
-    "                // k_value\n"
-    "                cell = document.createElement('td');\n"
-    "                cell.textContent = item.k_value || '';\n"
-    "                row.appendChild(cell);\n"
-    "\n"
-    "                tbody.appendChild(row);\n"
-    "            });\n"
-    "        })\n"
-    "        .catch(err => {\n"
-    "            console.error('获取数据时出错:', err);\n"
-    "        })\n"
-    "        .finally(() => {\n"
-    "            // 无论成功或失败都隐藏加载图标\n"
-    "            document.getElementById('loading').style.display = 'none';\n"
-    "        });\n"
-    "    }\n"
-    "    </script>\n"
-    "</body>\n"
-    "</html>\n";
-
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, resp_str, strlen(resp_str));
+    
     return ESP_OK;
 }
 
@@ -1427,19 +1225,28 @@ httpd_handle_t start_gen_webserver(void)
         httpd_uri_t root_uri = {
             .uri       = "/",
             .method    = HTTP_GET,
-            .handler   = ota_get_handler,
+            .handler   = index_get_handler,
             .user_ctx  = NULL
         };
         httpd_register_uri_handler(server, &root_uri);
 
-        // 进度查询 GET
-        httpd_uri_t progress_uri = {
-            .uri       = "/progress",
+        // 注册 /info/r
+        httpd_uri_t info_read_uri = {
+            .uri       = "/info/r",
             .method    = HTTP_GET,
-            .handler   = progress_get_handler,
+            .handler   = device_info_get_handler,
             .user_ctx  = NULL
         };
-        httpd_register_uri_handler(server, &progress_uri);
+        httpd_register_uri_handler(server, &info_read_uri);
+
+        // 注册 /info/w
+        httpd_uri_t info_write_uri = {
+            .uri       = "/info/w",
+            .method    = HTTP_POST,
+            .handler   = device_info_write_handler,
+            .user_ctx  = NULL
+        };
+        httpd_register_uri_handler(server, &info_write_uri);
 
         // 固件上传 POST
         httpd_uri_t upload_uri = {
@@ -1449,15 +1256,6 @@ httpd_handle_t start_gen_webserver(void)
             .user_ctx  = NULL
         };
         httpd_register_uri_handler(server, &upload_uri);
-
-        // 注册 /calilist
-        httpd_uri_t calilist_uri = {
-            .uri       = "/calilist",
-            .method    = HTTP_GET,
-            .handler   = calilist_get_handler,
-            .user_ctx  = NULL
-        };
-        httpd_register_uri_handler(server, &calilist_uri);
 
         // 注册 /calilist/data
         httpd_uri_t calilist_data_uri = {
