@@ -133,7 +133,7 @@
         /* 加载图标（Spinner） */
         #loading {
             display: none;
-            margin: 0 auto 1rem auto;
+            margin: 1rem auto 1rem auto;
             width: 50px;
             height: 50px;
             border: 6px solid #f3f3f3;
@@ -312,9 +312,6 @@
             <!-- Calibration List Tab -->
             <div id="calilist" class="tab-content">
 
-                <!-- 加载图标 -->
-                <div id="loading"></div>
-        
                 <!-- 表格数据展示 -->
                 <table id="caliTable">
                     <thead>
@@ -328,10 +325,11 @@
                     <tbody>
                     </tbody>
                 </table>
-
+                <!-- 加载图标 -->
+                <div id="loading"></div>
                 <!-- 底部刷新按钮 -->
                 <div class="bottom-button-container">
-                    <button onclick="refreshData()">Refresh</button>
+                    <button id="button_calist" onclick="refreshData()">Refresh</button>
                 </div>
             </div>
         </div>
@@ -354,7 +352,7 @@
                 })
                 .catch(err => console.error('Error fetching device info:', err));
 
-             refreshData();
+            //refreshData();
         };
 
         function showTab(tab) {
@@ -454,7 +452,9 @@
         function refreshData() {
         // 显示加载图标
         document.getElementById('loading').style.display = 'block';
-
+        const refreshbtn = document.getElementById("button_calist");
+        refreshbtn.disabled = true;
+        
         fetch('/calilist/data')
         .then(response => response.json())
         .then(data => {
@@ -495,6 +495,7 @@
         .finally(() => {
             // 无论成功或失败都隐藏加载图标
             document.getElementById('loading').style.display = 'none';
+            refreshbtn.disabled = false;
         });
     }
     </script>

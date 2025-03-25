@@ -38,6 +38,9 @@ static bool s_waiting_response = false;
 
 esp_mqtt_client_handle_t client;
 
+#define MQTT_RX_BUFF_SIZE   16*1024
+#define CALILIST_BUFF_SIZE  16*1024
+
 static int resolution_report_push_state(char *json_str,size_t len,cJSON* print,filament_msg_t *filament_msg)
 {
     filament_msg->amd_id = -1;
@@ -100,17 +103,13 @@ static int resolution_report_push_state(char *json_str,size_t len,cJSON* print,f
 }
 
 static int resolution_report_cali_get(char *json_str,size_t len,cJSON* print,filament_msg_t *filament_msg){
-    if( extrusion_cali_list_ptr != NULL ){
-        //free(extrusion_cali_list_ptr);
-        heap_caps_free(extrusion_cali_list_ptr);
+    //extrusion_cali_list_ptr = heap_caps_malloc(len+2, MALLOC_CAP_SPIRAM);
+    memset(extrusion_cali_list_ptr,'\0',CALILIST_BUFF_SIZE);
+    if(len >= CALILIST_BUFF_SIZE ){
+        ESP_LOGE(TAG,"cali list size biger than buffer size! len:%d",len);
+        return -1;
     }
-    extrusion_cali_list_ptr = heap_caps_malloc(len+2, MALLOC_CAP_SPIRAM);
-    if(extrusion_cali_list_ptr == NULL ){
-        ESP_LOGW(TAG,"Failed to malloc cali_get_list_ptr");
-    }
-    memset(extrusion_cali_list_ptr,0,len+2);
     strlcpy(extrusion_cali_list_ptr,json_str,len+1);
-    //ESP_LOGI(TAG,"%s %d %d",json_str,strlen(json_str),strlen(extrusion_cali_list_ptr));
     xQueueSend(xqueue_cali_get_msg,&extrusion_cali_list_ptr,(TickType_t)10);
     return 0;
 }
@@ -372,6 +371,7 @@ void init_mqtt(char* printer_ip,char* printer_password,char* printer_device_id)
             //.address.uri = "mqtts://10.0.0.76:8883",
             .address.hostname = device_ip,
             .address.port = 8883,
+            .verification.use_global_ca_store = false,
             .verification.skip_cert_common_name_check = true,
             .address.transport = MQTT_TRANSPORT_OVER_SSL,
             .verification.certificate = (const char *)mqtt_eclipseprojects_io_pem_start,
@@ -380,10 +380,10 @@ void init_mqtt(char* printer_ip,char* printer_password,char* printer_device_id)
         .credentials = {
             .username = "bblp",
             .client_id = "amsplus_client_",
-            .authentication.password = device_password
+            .authentication.password = device_password,
         },
         .buffer = {
-            .size = 16 * 1024,
+            .size = MQTT_RX_BUFF_SIZE,
         }
     };
 
@@ -400,6 +400,11 @@ void init_mqtt(char* printer_ip,char* printer_password,char* printer_device_id)
     /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(client);
+
+    extrusion_cali_list_ptr = heap_caps_malloc(sizeof(char)*CALILIST_BUFF_SIZE, MALLOC_CAP_SPIRAM);
+    if(extrusion_cali_list_ptr == NULL ){
+        ESP_LOGW(TAG,"Failed to malloc cali_get_list_ptr");
+    }
 }
 
 void bambu_mqtt_disconnect(){

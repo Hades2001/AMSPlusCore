@@ -51,7 +51,7 @@ void obtain_time(void)
 
 static int s_retry_num = 0;
 EventGroupHandle_t s_wifi_event_group;
-char* device_ipstr[20] = {};
+char device_ipstr[20] = {};
 
 static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
@@ -1179,16 +1179,21 @@ static esp_err_t upload_post_handler(httpd_req_t *req)
 
 QueueHandle_t xqueue_get_calilist_msg;
 QueueHandle_t xqueue_calilist_json_msg; 
+
+static bool rein_calilist_data_get_flag = false;
 // 处理 /calilist/data 请求，返回 JSON
 static esp_err_t calilist_data_get_handler(httpd_req_t *req)
 {
     httpmsg_type_t type = kHTTPMSG_CALI_GET;
-
-    if (xQueueSend(xqueue_get_calilist_msg, &type, 10) != pdTRUE) {
-        ESP_LOGE(TAG, "Failed to send msg to queue!");
-        httpd_resp_send_500(req);
-        return ESP_FAIL;
+    if( !rein_calilist_data_get_flag ){
+        if (xQueueSend(xqueue_get_calilist_msg, &type, 10) != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to send msg to queue!");
+            httpd_resp_send_500(req);
+            return ESP_FAIL;
+        }
+        rein_calilist_data_get_flag = true;
     }
+
     httpd_resp_set_type(req, "application/json");
 
     char *calilist_json_ptr = NULL;
@@ -1196,20 +1201,21 @@ static esp_err_t calilist_data_get_handler(httpd_req_t *req)
     if(xQueueReceive(xqueue_calilist_json_msg,&calilist_json_ptr,20000) != pdTRUE){
         ESP_LOGW(TAG,"Failed to get cali list, xQueueReceive fault");
         httpd_resp_send(req, "", calilist_json_len);
+        rein_calilist_data_get_flag = false;
         return ESP_FAIL;
     }
     if(calilist_json_ptr == NULL ){
         ESP_LOGW(TAG,"Failed to get cali list, calilist_json_ptr is nullptr");
         httpd_resp_send(req, "", calilist_json_len);
+        rein_calilist_data_get_flag = false;
         return ESP_FAIL;
     }
     else{
         calilist_json_len = strlen(calilist_json_ptr);
         ESP_LOGI(TAG,"Success to get cali list %d %s",calilist_json_len,calilist_json_ptr);
         httpd_resp_send(req, calilist_json_ptr, calilist_json_len);
-        free(calilist_json_ptr);
     }
-    
+    rein_calilist_data_get_flag = false;
     return ESP_OK;
 }
 
