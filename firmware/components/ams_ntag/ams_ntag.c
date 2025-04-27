@@ -106,6 +106,13 @@ int parse_payload(const char *json_string, size_t length, filament_info *info) {
         strncpy(info->version, version->valuestring, sizeof(info->version) - 1);
     }
 
+    if(strcmp(info->version,"2.0") == 0){
+        ESP_LOGI(TAG, "Version is 2.0");
+        cJSON *code = cJSON_GetObjectItemCaseSensitive(payload, "code");
+        if (cJSON_IsString(code) && (code->valuestring != NULL)) {
+            strncpy(info->code, code->valuestring, sizeof(info->code) - 1);
+        }
+    }
     // 解析 type
     cJSON *type = cJSON_GetObjectItemCaseSensitive(payload, "type");
     if (cJSON_IsString(type) && (type->valuestring != NULL)) {
@@ -181,7 +188,12 @@ int filament_setting_payload(char *json_string, size_t length, filament_info *in
     cJSON_AddNumberToObject(print, "nozzle_temp_max", info->max_temp);
     cJSON_AddStringToObject(print, "tray_type", info->type);
     cJSON_AddStringToObject(print, "setting_id", "");
-    cJSON_AddStringToObject(print, "tray_info_idx", find_mapping(info->type));
+    if(strcmp(info->version,"2.0") == 0){
+        cJSON_AddStringToObject(print, "tray_info_idx", info->code);
+    }
+    else if(strcmp(info->version,"1.1") == 0){
+        cJSON_AddStringToObject(print, "tray_info_idx", find_mapping(info->type));
+    }
 
     // Add the "print" object to the root
     cJSON_AddItemToObject(root, "print", print);
@@ -211,11 +223,13 @@ int cali_idx_setting_payload(char *json_string, size_t length, filament_info *in
     cJSON_AddNumberToObject(print, "ams_id", ams_id);
     int tray_id = (info->surface[0] == 'A') ? (( scanner_id * 2 ) - 1) : (( scanner_id * 2 ) - 2);
     cJSON_AddNumberToObject(print, "tray_id", tray_id);
-    
-    char cali_idx_str[8] = {0};
-    itoa(info->cali_idx,cali_idx_str,10);
-    cJSON_AddStringToObject(print, "filament_id", "GFL99");
-    //cJSON_AddStringToObject(print, "cali_idx", cali_idx_str);
+    if(strcmp(info->version,"2.0") == 0){
+        cJSON_AddStringToObject(print, "filament_id", info->code);
+    }
+    else if(strcmp(info->version,"1.1") == 0){
+        cJSON_AddStringToObject(print, "filament_id", find_mapping(info->type));
+    }
+
     cJSON_AddNumberToObject(print, "cali_idx", info->cali_idx);
     cJSON_AddStringToObject(print, "nozzle_diameter", "0.4");
     //cJSON_AddStringToObject(print, "tray_type", info->type);

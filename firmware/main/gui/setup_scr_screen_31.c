@@ -204,10 +204,11 @@ void setup_scr_screen_31(lv_ui *ui){
 	//Write codes screen_31_lab_filament_1
 	ui->screen_31_lab_filament_1 = lv_label_create(ui->screen_5_cont_1);
 	lv_obj_set_pos(ui->screen_31_lab_filament_1, 8, 110);
-	lv_obj_set_size(ui->screen_31_lab_filament_1, 51, 16);
+	lv_obj_set_size(ui->screen_31_lab_filament_1, 51, 18);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_filament_1, LV_SCROLLBAR_MODE_OFF);
+	lv_obj_set_scroll_dir(ui->screen_31_lab_filament_1, LV_DIR_HOR);
 	lv_label_set_text(ui->screen_31_lab_filament_1, "?");
-	lv_label_set_long_mode(ui->screen_31_lab_filament_1, LV_LABEL_LONG_WRAP);
+	lv_label_set_long_mode(ui->screen_31_lab_filament_1, LV_LABEL_LONG_SCROLL_CIRCULAR);
 
 	//Write style state: LV_STATE_DEFAULT for style_screen_31_lab_filament_1_main_main_default
 	static lv_style_t style_screen_31_lab_filament_1_main_main_default;
@@ -234,10 +235,11 @@ void setup_scr_screen_31(lv_ui *ui){
 	//Write codes screen_31_lab_filament_2
 	ui->screen_31_lab_filament_2 = lv_label_create(ui->screen_5_cont_1);
 	lv_obj_set_pos(ui->screen_31_lab_filament_2, 66, 110);
-	lv_obj_set_size(ui->screen_31_lab_filament_2, 51, 16);
+	lv_obj_set_size(ui->screen_31_lab_filament_2, 51, 18);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_filament_2, LV_SCROLLBAR_MODE_OFF);
+	lv_obj_set_scroll_dir(ui->screen_31_lab_filament_2, LV_DIR_HOR);
 	lv_label_set_text(ui->screen_31_lab_filament_2, "PETG");
-	lv_label_set_long_mode(ui->screen_31_lab_filament_2, LV_LABEL_LONG_WRAP);
+	lv_label_set_long_mode(ui->screen_31_lab_filament_2, LV_LABEL_LONG_SCROLL_CIRCULAR);
 
 	//Write style state: LV_STATE_DEFAULT for style_screen_31_lab_filament_2_main_main_default
 	static lv_style_t style_screen_31_lab_filament_2_main_main_default;
@@ -264,10 +266,11 @@ void setup_scr_screen_31(lv_ui *ui){
 	//Write codes screen_31_lab_filament_3
 	ui->screen_31_lab_filament_3 = lv_label_create(ui->screen_5_cont_1);
 	lv_obj_set_pos(ui->screen_31_lab_filament_3, 124, 110);
-	lv_obj_set_size(ui->screen_31_lab_filament_3, 51, 16);
+	lv_obj_set_size(ui->screen_31_lab_filament_3, 51, 18);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_filament_3, LV_SCROLLBAR_MODE_OFF);
+	lv_obj_set_scroll_dir(ui->screen_31_lab_filament_3, LV_DIR_HOR);
 	lv_label_set_text(ui->screen_31_lab_filament_3, "PETG");
-	lv_label_set_long_mode(ui->screen_31_lab_filament_3, LV_LABEL_LONG_WRAP);
+	lv_label_set_long_mode(ui->screen_31_lab_filament_3, LV_LABEL_LONG_SCROLL_CIRCULAR);
 
 	//Write style state: LV_STATE_DEFAULT for style_screen_31_lab_filament_3_main_main_default
 	static lv_style_t style_screen_31_lab_filament_3_main_main_default;
@@ -295,10 +298,11 @@ void setup_scr_screen_31(lv_ui *ui){
 	//Write codes screen_31_lab_filament_4
 	ui->screen_31_lab_filament_4 = lv_label_create(ui->screen_5_cont_1);
 	lv_obj_set_pos(ui->screen_31_lab_filament_4, 182, 110);
-	lv_obj_set_size(ui->screen_31_lab_filament_4, 51, 16);
+	lv_obj_set_size(ui->screen_31_lab_filament_4, 51, 18);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_filament_4, LV_SCROLLBAR_MODE_OFF);
+	lv_obj_set_scroll_dir(ui->screen_31_lab_filament_4, LV_DIR_HOR);
 	lv_label_set_text(ui->screen_31_lab_filament_4, "PETG");
-	lv_label_set_long_mode(ui->screen_31_lab_filament_4, LV_LABEL_LONG_WRAP);
+	lv_label_set_long_mode(ui->screen_31_lab_filament_4, LV_LABEL_LONG_SCROLL_CIRCULAR);
 
 	//Write style state: LV_STATE_DEFAULT for style_screen_31_lab_filament_4_main_main_default
 	static lv_style_t style_screen_31_lab_filament_4_main_main_default;
@@ -543,7 +547,7 @@ void setup_scr_screen_31(lv_ui *ui){
 	lv_obj_set_size(ui->screen_31_lab_info, 70, 18);
 	lv_obj_set_scrollbar_mode(ui->screen_31_lab_info, LV_SCROLLBAR_MODE_OFF);
 	lv_label_set_text(ui->screen_31_lab_info, "192.168.0.1");
-	lv_label_set_long_mode(ui->screen_31_lab_info, LV_LABEL_LONG_SCROLL);
+	lv_label_set_long_mode(ui->screen_31_lab_info, LV_LABEL_LONG_SCROLL_CIRCULAR);
 
 	//Write style state: LV_STATE_DEFAULT for style_screen_31_lab_info_main_main_default
 	static lv_style_t style_screen_31_lab_info_main_main_default;

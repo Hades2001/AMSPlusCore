@@ -28,26 +28,71 @@ char request_topic[64] = {0};
 
 char *extrusion_cali_list_ptr = NULL;
 
+typedef struct {
+    char *payload;
+    size_t topic_len;
+    size_t data_len;
+    size_t data_offset;
+} mqtt_message_t;
+
+mqtt_message_t rec_msg_struct;
+
 const char push_all_payload[] = "{\"pushing\": {\"sequence_id\": \"0\",\"command\": \"pushall\",\"version\": 1,\"push_target\": 1}}";
 QueueHandle_t xqueue_ams_msg = NULL;
+
+QueueHandle_t xqueue_print_msg = NULL;
 QueueHandle_t xqueue_cali_get_msg = NULL;
 QueueHandle_t xqueue_send_msg = NULL;
 
 static message_t s_current_msg_in_flight = {0};
 static bool s_waiting_response = false;
+static mqtt_state_t s_mqtt_state = kSTATE_MQTT_DISCONNECTED;
 
 esp_mqtt_client_handle_t client;
 
-#define MQTT_RX_BUFF_SIZE   16*1024
+#define MQTT_RX_BUFF_SIZE   64*1024
+#define MQTT_RX_TOPIC_SIZE  4*1024
 #define CALILIST_BUFF_SIZE  16*1024
 
 static int resolution_report_push_state(char *json_str,size_t len,cJSON* print,filament_msg_t *filament_msg)
 {
     filament_msg->amd_id = -1;
+
+    //mc_percent(num) -> 0 - 100%
+    //mc_print_stage(string) -> "2"(unfinished) "1"(finished) "0"(Preparing)
+
+    // 获取 "mc_percent" 对象
+    cJSON *mc_percent = cJSON_GetObjectItem(print, "mc_percent");
+    // 获取 "mc_print_stage" 对象
+    cJSON *mc_print_stage = cJSON_GetObjectItem(print, "mc_print_stage");
+
+    if (cJSON_IsString(mc_print_stage)) {
+        //int _percent = mc_percent->valueint;
+        const char *_print_stage_str = mc_print_stage->valuestring;
+        int _print_stage = atoi(_print_stage_str);
+        ESP_LOGI(TAG,"get mc_print_stage: %s->%d",_print_stage_str,_print_stage);
+        //ESP_LOGI(TAG,"get 'mc_percent:%d' & 'mc_print_stage:%d'",_percent,_print_stage);
+        if(_print_stage == 1){
+            ESP_LOGI(TAG,"print finished");
+            filament_msg->sub_event_id = kEVENT_ID_PRINT_FINISHED;
+            //TODO: send print finished event
+        }
+        else if(_print_stage == 2){
+            ESP_LOGI(TAG,"print Printing");
+            filament_msg->sub_event_id = kEVENT_ID_PRINT_PRINTING;
+            //TODO: send print paused event
+        }  
+        else if(_print_stage == 0){
+            ESP_LOGI(TAG,"print preparing");
+            //TODO: send print preparing event
+        }
+        xQueueSend(xqueue_ams_msg,filament_msg,(TickType_t)10);
+    }
+
     // 获取 "ams" 对象
     cJSON *ams = cJSON_GetObjectItem(print, "ams");
     if (!cJSON_IsObject(ams)) {
-        ESP_LOGW(TAG,"Failed to get 'ams' object\n");
+        //ESP_LOGW(TAG,"Failed to get 'ams' object\n");
         return -1;
     }
 
@@ -73,7 +118,6 @@ static int resolution_report_push_state(char *json_str,size_t len,cJSON* print,f
         cJSON *tray_array = cJSON_GetObjectItem(ams_item, "tray");
         if (!cJSON_IsArray(tray_array)) {
             ESP_LOGW(TAG,"Failed to get 'tray' array\n");
-            //printf("Failed to get 'tray' array\n");
             continue;
         }
         // 遍历 "tray" 数组
@@ -93,6 +137,7 @@ static int resolution_report_push_state(char *json_str,size_t len,cJSON* print,f
 
             // 打印结果
             filament_msg->amd_id = atoi(id_str);
+            filament_msg->sub_event_id = kEVENT_ID_FILAMENT;
             filament_msg->color = (uint32_t)strtoul(tray_color_str, NULL, 16);;
             strncpy(filament_msg->filament_type,tray_type_str,32);
             xQueueSend(xqueue_ams_msg,filament_msg,(TickType_t)10);
@@ -134,7 +179,7 @@ static void resolution_report(char *json_str,size_t len,filament_msg_t *filament
     // 获取 "sequence_id"
     cJSON *sequence_id = cJSON_GetObjectItem(print, "sequence_id");
     if (cJSON_IsString(sequence_id)) {
-        ESP_LOGI(TAG,"Sequence ID: %s\n", sequence_id->valuestring);
+        ESP_LOGD(TAG,"Sequence ID: %s\n", sequence_id->valuestring);
     }
 
     // 获取 "command" 对象
@@ -162,15 +207,15 @@ static void resolution_report(char *json_str,size_t len,filament_msg_t *filament
     }
     //s_waiting_response = false;
     if(strncmp(command->valuestring,"push_status",sizeof("push_status")) == 0 ){
-        ESP_LOGI(TAG,"command: %s\n", "push_status");
+        ESP_LOGD(TAG,"command: %s\n", "push_status");
         resolution_report_push_state(json_str,len,print,filament_msg);
     }
     else if(strncmp(command->valuestring,"extrusion_cali_get",sizeof("extrusion_cali_get")) == 0 ){
-        ESP_LOGI(TAG,"command: %s\n", "extrusion_cali_get");
+        ESP_LOGD(TAG,"command: %s\n", "extrusion_cali_get");
         resolution_report_cali_get(json_str,len,print,filament_msg);
     }
     else if(strncmp(command->valuestring,"extrusion_cali_sel",sizeof("extrusion_cali_sel")) == 0 ){
-        ESP_LOGI(TAG,"command: %s %.*s", "extrusion_cali_sel",len,json_str);
+        ESP_LOGD(TAG,"command: %s %.*s", "extrusion_cali_sel",len,json_str);
     }
     // 清理 JSON 对象
     cJSON_Delete(root);
@@ -179,8 +224,15 @@ static void resolution_report(char *json_str,size_t len,filament_msg_t *filament
 static void message_sender_task(void *pvParameters)
 {
     while (1) {
+        //获取发送消息
         if (!s_waiting_response) {
             if (xQueueReceive(xqueue_send_msg, &s_current_msg_in_flight, 0) == pdTRUE) {
+                //获取MQTT连接状态
+                if(s_mqtt_state != kSTATE_MQTT_CONNECTED){
+                    ESP_LOGE(TAG,"MQTT not connected,skip send message");
+                    vTaskDelay(pdMS_TO_TICKS(100));
+                    continue;
+                }
                 esp_mqtt_client_publish(client, request_topic, s_current_msg_in_flight.payload, (int)s_current_msg_in_flight.length, 0, 0);
 
                 ESP_LOGI(TAG,"Send message (seq_id=%d): %.*s\n",
@@ -257,37 +309,61 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
         msg_id = esp_mqtt_client_subscribe(client, report_topic, 1);
         ESP_LOGI(TAG, "Sent subscribe successful, msg_id=%d", msg_id);
-        xTaskCreate(message_sender_task, "message_sender_task", 4 * 1024, NULL, 5, NULL);
-        ESP_LOGI(TAG, "Sent msg task creat successful");
         filament_msg.event_id = event_id;
         filament_msg.msg_id = msg_id;
         xQueueSend(xqueue_ams_msg,&filament_msg,(TickType_t)10);
+        s_mqtt_state = kSTATE_MQTT_CONNECTED;
+        mqtt_send_filament_setting();
         break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
         filament_msg.event_id = event_id;
         filament_msg.msg_id = msg_id;
         xQueueSend(xqueue_ams_msg,&filament_msg,(TickType_t)10);
+        s_mqtt_state = kSTATE_MQTT_DISCONNECTED;
         break;
     case MQTT_EVENT_SUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-        msg_id = esp_mqtt_client_publish(client, request_topic, push_all_payload, 0, 0, 0);
+        //msg_id = esp_mqtt_client_publish(client, request_topic, push_all_payload, 0, 0, 0);
         ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_UNSUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
         break;
     case MQTT_EVENT_PUBLISHED:
-        ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+        ESP_LOGD(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
         break;
     case MQTT_EVENT_DATA:
-        ESP_LOGI(TAG, "MQTT_EVENT_DATA");
+        ESP_LOGD(TAG, "MQTT_EVENT_DATA");
         filament_msg.event_id = event_id;
         filament_msg.msg_id = msg_id;
-        //printf("TOPIC=%.*s topic_len = %d\r\n", event->topic_len, event->topic, event->total_data_len);
-        ESP_LOGD(TAG,"topic_len = %d,DATA=%.*s\r\n",event->total_data_len,event->data_len, event->data);
-        //printf("DATA=%.*s\r\n", event->data_len, event->data);
-        resolution_report(event->data,event->data_len,&filament_msg);
+
+        ESP_LOGD(TAG,"topic_len = %d, data_len = %d, data_offset = %d,data=%.*s",event->total_data_len,event->data_len, event->current_data_offset, event->data_len, event->data);
+
+        //由于MQTT接收缓冲区较小，将数据分段接收到rec_msg_struct中
+        if( event->total_data_len <= MQTT_RX_TOPIC_SIZE ){
+            resolution_report(event->data,event->data_len,&filament_msg);
+        }
+        else if(event->total_data_len > MQTT_RX_BUFF_SIZE){
+            ESP_LOGE(TAG,"total_data_len > MQTT_RX_BUFF_SIZE");
+        }
+        else if((event->total_data_len < MQTT_RX_BUFF_SIZE)&&(event->total_data_len > MQTT_RX_TOPIC_SIZE)){
+            if( event->current_data_offset == 0 ){
+                memset(rec_msg_struct.payload,'\0',MQTT_RX_BUFF_SIZE);
+                rec_msg_struct.topic_len = event->topic_len;
+                rec_msg_struct.data_len = 0;
+            }
+
+            if( rec_msg_struct.data_len < event->total_data_len) {
+                memcpy(&rec_msg_struct.payload[event->current_data_offset],event->data,event->data_len);
+                rec_msg_struct.data_len += event->data_len;
+            }
+
+            if(rec_msg_struct.data_len >= event->total_data_len){
+                ESP_LOGD(TAG,"receive complete message DATA=%.*s",rec_msg_struct.data_len,rec_msg_struct.payload);
+                resolution_report(rec_msg_struct.payload,rec_msg_struct.data_len,&filament_msg);
+            }
+        }  
         break;
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
@@ -371,7 +447,7 @@ void init_mqtt(char* printer_ip,char* printer_password,char* printer_device_id)
             //.address.uri = "mqtts://10.0.0.76:8883",
             .address.hostname = device_ip,
             .address.port = 8883,
-            .verification.use_global_ca_store = false,
+            //.verification.use_global_ca_store = false,
             .verification.skip_cert_common_name_check = true,
             .address.transport = MQTT_TRANSPORT_OVER_SSL,
             .verification.certificate = (const char *)mqtt_eclipseprojects_io_pem_start,
@@ -383,7 +459,7 @@ void init_mqtt(char* printer_ip,char* printer_password,char* printer_device_id)
             .authentication.password = device_password,
         },
         .buffer = {
-            .size = MQTT_RX_BUFF_SIZE,
+            .size = MQTT_RX_TOPIC_SIZE,
         }
     };
 
@@ -405,6 +481,17 @@ void init_mqtt(char* printer_ip,char* printer_password,char* printer_device_id)
     if(extrusion_cali_list_ptr == NULL ){
         ESP_LOGW(TAG,"Failed to malloc cali_get_list_ptr");
     }
+
+    rec_msg_struct.payload = heap_caps_malloc(sizeof(char)*MQTT_RX_BUFF_SIZE, MALLOC_CAP_SPIRAM);
+    if(rec_msg_struct.payload == NULL ){
+        ESP_LOGE(TAG,"Failed to malloc rec_payload_ptr");
+    }
+    rec_msg_struct.topic_len = 0; 
+    rec_msg_struct.data_len = 0;
+    rec_msg_struct.data_offset = 0;
+
+    xTaskCreate(message_sender_task, "message_sender_task", 4 * 1024, NULL, 5, NULL);
+    ESP_LOGI(TAG, "Sent msg task creat successful");
 }
 
 void bambu_mqtt_disconnect(){

@@ -79,6 +79,9 @@ typedef struct
 	lv_obj_t *qr_code;
 }lv_ui;
 
+extern lv_obj_t *filament_boxlist[4];
+extern lv_obj_t *filament_textlist[4];
+
 void init_scr_del_flag(lv_ui *ui);
 void setup_ui(lv_ui *ui);
 extern lv_ui ams_ui;

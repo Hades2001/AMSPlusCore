@@ -3,13 +3,32 @@
 #include <string.h>
 #include "mqtt_client.h"
 
+typedef enum {
+    kEVENT_ID_FILAMENT = 0,
+    kEVENT_ID_RECONFIG = 1,
+    kEVENT_ID_PRINT_PAUSED = 2,
+    kEVENT_ID_PRINT_PRINTING = 3,
+    kEVENT_ID_PRINT_FINISHED = 4,
+    kEVENT_ID_CALI_GET = 5,
+    kEVENT_ID_CALI_SET = 6,
+    kEVENT_ID_CALI_LIST = 7,
+} event_id_t;
+
+typedef enum {
+    kSTATE_MQTT_CONNECTING = 0,
+    kSTATE_MQTT_CONNECTED = 1,
+    kSTATE_MQTT_DISCONNECTED = 2,
+} mqtt_state_t;
+
 typedef struct filament_msg{
     int event_id;
+    int sub_event_id;
     int msg_id;
     int ams_id;
     int amd_id;
     char filament_type[32];
     uint32_t color;
+    char *extrusion_cali_list_ptr;
 }filament_msg_t;
 
 typedef struct {

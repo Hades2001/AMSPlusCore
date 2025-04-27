@@ -5,6 +5,7 @@
 typedef struct {
     char protocol[32];
     char version[16];
+    char code[16];
     char type[16];
     uint32_t color_hex;
     char brand[32];

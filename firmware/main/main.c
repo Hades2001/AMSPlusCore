@@ -19,7 +19,7 @@
 
 lv_ui ams_ui;
 
-enum{
+typedef enum {
     kSYS_IDLE= 0,
     kSYS_CONNECT_WFIF,
     kSYS_CONNECT_MQTT,
@@ -30,16 +30,19 @@ enum{
     kSYS_ERROR,
     kSYS_OTA,
     kSYS_DEFAULE,
-};
+} sysstate_t;
 
-enum{
+typedef enum {
+    kFLAG_NONE              = 0x0000,
     kFLAG_CONNECT_WIFI      = 0x0001,
     kFLAG_CONNECTED_MQTT    = 0x0002,
     kFLAG_FLUSHAMS          = 0x0004,
-};
+    kFLAG_PRINT_FINISHED    = 0x0008,
+    kFLAG_PRINT_PRINTINH    = 0x0010,   
+}sysflag_t;
 
-int sysstate = kSYS_IDLE;
-int sysflag = 0;
+sysstate_t  sysstate    = kSYS_IDLE;
+sysflag_t   sysflag     = kFLAG_NONE;
 int _g_ams_id = 0;
 
 void reconfigAMSPlus(){
@@ -54,7 +57,6 @@ void reconfigAMSPlus(){
         vTaskDelay(1000);
     }
 }
-
 /**
  * @brief Wi-Fi 事件回调
  */
@@ -129,13 +131,9 @@ void connect_to_wifi(){
             lv_label_set_text(ams_ui.screen_21_lab_SSID, "Failed to connect, Reconfigure device");
             reconfigAMSPlus();
         }
-
-        //sprintf(formatbuff,"",temp);
+        sysflag |= kFLAG_CONNECTED_MQTT;
         lv_label_set_text(ams_ui.screen_31_lab_info,get_device_ip());
-        //lv_label_set_text(ams_ui.screen_21_lab_SSID, "Sync sntp time");
         start_gen_webserver();
-        //initialize_sntp();
-        //obtain_time();
         connect_mqtt(&device_config);
         lv_label_set_text(ams_ui.screen_21_lab_SSID, "Connecting to print mqtt");
         sysstate = kSYS_CONNECT_MQTT;
@@ -156,7 +154,7 @@ void parse_ntag(ndef_record **records,int scanner_id,int amsid){
                 filament_info info;
                 parse_payload((const char*)current->payload,(size_t)current->payload_length,&info);
                 char jsonbuff[256] = {0};
-                if(sysstate == kSYS_RUNNING){
+                if((sysstate == kSYS_RUNNING )&& (sysflag & kFLAG_PRINT_FINISHED)){
                     int id = filament_setting_payload(jsonbuff,sizeof(jsonbuff),&info,scanner_id,amsid);
                     ESP_LOGI(TAG,"Payload JSON:%s",jsonbuff);
                     enqueue_print_message(jsonbuff,strlen(jsonbuff),id);
@@ -176,8 +174,6 @@ void parse_ntag(ndef_record **records,int scanner_id,int amsid){
         current = current->next;
     }
 }
-
-uint8_t read_ntag_buff[32];
 
 static void on_picc_state_changed(void *arg, esp_event_base_t base, int32_t event_id, void *data)
 {
@@ -223,27 +219,7 @@ int init_ntag()
     return ESP_OK;
 }
 
-void gui_user_init() {
-
-    setup_ui(&ams_ui);
-    lv_scr_load(ams_ui.screen_5);
-}
-
-void app_main(void) {
-    gpio_install_isr_service(ESP_INTR_FLAG_SHARED);
-    qmsd_board_config_t config = QMSD_BOARD_DEFAULT_CONFIG;
-    config.gui.buffer_size = 240 * 135 * 2;
-    config.gui.en = true;
-    config.gui.flags.double_fb = 0;
-    config.gui.flags.fb_in_psram = 0;
-    config.gui.refresh_task.en = 0;
-    config.board_dir = BOARD_ROTATION_90;
-    config.touch.en = false;
-    qmsd_board_init(&config);
-
-    const esp_app_desc_t* app_desc = esp_app_get_description();
-    ESP_LOGI(TAG,"Firmware Version %s",app_desc->version);
-
+int hardware_init(){
     lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_11,true);
     vTaskDelay(200);
     lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_21,true);
@@ -283,24 +259,64 @@ void app_main(void) {
 
     lv_obj_set_style_text_color(ams_ui.screen_21_lab_SSID,lv_color_make(0xff, 0xff, 0xff),LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_clear_flag(ams_ui.screen_21_img_1, LV_OBJ_FLAG_HIDDEN);
-    
+
+    return ESP_OK;
+}
+
+//这是一个解析filament_msg的sub_event_id的函数
+void parse_filament_msg(filament_msg_t *filament_msg){
+    char charbuff[64];
+    switch (filament_msg->sub_event_id)
+    {
+    case kEVENT_ID_FILAMENT:
+        if(filament_msg->amd_id >= 0 ){
+            filament_msg->amd_id = (filament_msg->amd_id > 3 ) ? 3 : filament_msg->amd_id;
+            lv_label_set_text(filament_textlist[filament_msg->amd_id], filament_msg->filament_type);
+            lv_obj_set_style_bg_color(filament_boxlist[filament_msg->amd_id], lv_color_hex(filament_msg->color>>8), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_color(filament_boxlist[filament_msg->amd_id], lv_color_hex(filament_msg->color>>8), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+        }
+        break;
+    case kEVENT_ID_RECONFIG:
+        break;
+    case kEVENT_ID_PRINT_PRINTING:
+        sysflag &= ~kFLAG_PRINT_FINISHED;
+        sysflag |= kFLAG_PRINT_PRINTINH;
+        sprintf(charbuff,"Printing IP:%s",get_device_ip());
+        lv_label_set_text(ams_ui.screen_31_lab_info,charbuff);
+        break;
+    case kEVENT_ID_PRINT_FINISHED:
+        sysflag &= ~kFLAG_PRINT_PRINTINH;
+        sysflag |= kFLAG_PRINT_FINISHED;
+        sprintf(charbuff,"Idle IP:%s",get_device_ip());
+        lv_label_set_text(ams_ui.screen_31_lab_info,charbuff);
+        break;
+    }
+}
+void gui_user_init() {
+
+    setup_ui(&ams_ui);
+    lv_scr_load(ams_ui.screen_5);
+}
+
+void app_main(void) {
+    gpio_install_isr_service(ESP_INTR_FLAG_SHARED);
+    qmsd_board_config_t config = QMSD_BOARD_DEFAULT_CONFIG;
+    config.gui.buffer_size = 240 * 135 * 2;
+    config.gui.en = true;
+    config.gui.flags.double_fb = 0;
+    config.gui.flags.fb_in_psram = 0;
+    config.gui.refresh_task.en = 0;
+    config.board_dir = BOARD_ROTATION_90;
+    config.touch.en = false;
+    qmsd_board_init(&config);
+
+    const esp_app_desc_t* app_desc = esp_app_get_description();
+    ESP_LOGI(TAG,"Firmware Version %s",app_desc->version);
+    hardware_init();
     connect_to_wifi();
 
     float temp,hum;
     char tempstr[10];
-
-    lv_obj_t *filament_boxlist[4] = {
-        ams_ui.screen_31_box_filament_1,
-        ams_ui.screen_31_box_filament_2,
-        ams_ui.screen_31_box_filament_3,
-        ams_ui.screen_31_box_filament_4,
-    };
-    lv_obj_t *filament_textlist[4] = {
-        ams_ui.screen_31_lab_filament_1,
-        ams_ui.screen_31_lab_filament_2,
-        ams_ui.screen_31_lab_filament_3,
-        ams_ui.screen_31_lab_filament_4,
-    };
 
     int cnt = 200;
     int flush_ams_cnt = 19;
@@ -316,20 +332,15 @@ void app_main(void) {
             {
             case MQTT_EVENT_CONNECTED:
                 lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_31,true);
-                //mqtt_send_filament_setting();
+                sysflag |= kFLAG_CONNECTED_MQTT; 
                 sysstate = kSYS_RUNNING;
                 break;
             case MQTT_EVENT_DATA:
-                if(filament_msg.amd_id >= 0 ){
-                    filament_msg.amd_id = (filament_msg.amd_id > 3 ) ? 3 : filament_msg.amd_id;
-                    lv_label_set_text(filament_textlist[filament_msg.amd_id], filament_msg.filament_type);
-                    lv_obj_set_style_bg_color(filament_boxlist[filament_msg.amd_id], lv_color_hex(filament_msg.color>>8), LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_obj_set_style_bg_color(filament_boxlist[filament_msg.amd_id], lv_color_hex(filament_msg.color>>8), LV_PART_INDICATOR | LV_STATE_DEFAULT);
-                    //flush_ams_cnt = (is_flushing_filament) ? 19 : 20;
-                }
+                parse_filament_msg(&filament_msg);
                 break;
             case MQTT_EVENT_DISCONNECTED:
                 if(sysstate == kSYS_RUNNING ){
+                    sysflag &= ~kFLAG_CONNECTED_MQTT;
                     lv_obj_set_tile(ams_ui.screen_5_tileview_1,ams_ui.screen_21,true);
                 }
                 sysstate = kSYS_CONNECT_MQTT;
@@ -350,7 +361,6 @@ void app_main(void) {
                 memset(tempstr,0,sizeof(tempstr));
                 sprintf(tempstr,"%d%%",((uint16_t)(hum*100))%100);
                 lv_label_set_text(ams_ui.screen_31_lab_hum, tempstr);
-                //lv_bar_set_value(ams_ui.screen_31_bar_hum, ((uint16_t)(hum*100))%100, LV_ANIM_OFF);
             }
 
             if( flush_ams_cnt == 0 ){
@@ -377,7 +387,7 @@ void app_main(void) {
             if(sysstate != kSYS_RUNNING ){
                 xQueueSend(xqueue_calilist_json_msg,&extrusion_cali_json,10);
             }
-            else{
+            else if(sysstate == kSYS_RUNNING){
                 if(httpmsg == kHTTPMSG_CALI_GET ){
                     mqtt_send_get_cali_list();
                 }else if(httpmsg == kHTTPMSG_INTO_OTA ){
@@ -389,7 +399,6 @@ void app_main(void) {
         if(xQueueReceive(xqueue_cali_get_msg,&extrusion_cali_json,5) == pdTRUE){
             xQueueSend(xqueue_calilist_json_msg,&extrusion_cali_json,10);
         }
-
         cnt ++;
         if(cnt >= 200 ){
             qmsd_debug_heap_print(MALLOC_CAP_INTERNAL,0);
